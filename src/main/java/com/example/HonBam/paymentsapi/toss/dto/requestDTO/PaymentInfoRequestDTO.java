@@ -15,6 +15,7 @@ public class PaymentInfoRequestDTO {
     private int amount;
     private String orderId;
     private String method;
+    private String subId;
 
     
     // 결제 요청이 들어왔을 때 저장할 결제 정보

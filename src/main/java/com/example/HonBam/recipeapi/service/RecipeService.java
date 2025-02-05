@@ -21,13 +21,13 @@ public class RecipeService {
 
     public List<RecipeDetailResponseDTO> getAllRecipes() {
         List<Recipe> findList = recipeRepository.findAll();
-        log.info("레시피: {}", findList);
+//        log.info("레시피: {}", findList);
         return findList.stream().map(RecipeDetailResponseDTO::new).collect(Collectors.toList());
     }
 
     public List<RecipeDetailResponseDTO> searchRecipes(String name) {
         List<Recipe> searchResults = recipeRepository.findByCocktailNameContainingIgnoreCase(name);
-        log.info("검색한 결과 {}", searchResults);
+//        log.info("검색한 결과 {}", searchResults);
         return searchResults.stream().map(RecipeDetailResponseDTO::new).collect(Collectors.toList());
     }
 }

@@ -59,6 +59,7 @@ public class TokenProvider {
         claims.put("email", userEntity.getEmail());
         claims.put("role", userEntity.getRole().toString());
         claims.put("userPay",userEntity.getUserPay().toString());
+        claims.put("nickName", userEntity.getUserId());
 
         log.info("user {}", userEntity);
 

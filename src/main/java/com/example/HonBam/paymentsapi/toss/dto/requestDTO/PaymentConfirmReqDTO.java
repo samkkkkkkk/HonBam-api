@@ -2,7 +2,7 @@ package com.example.HonBam.paymentsapi.toss.dto.requestDTO;
 
 import lombok.*;
 
-@Getter
+@Getter @Setter
 @ToString
 @EqualsAndHashCode
 @NoArgsConstructor

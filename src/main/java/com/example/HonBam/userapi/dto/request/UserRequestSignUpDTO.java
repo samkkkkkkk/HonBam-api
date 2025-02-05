@@ -41,6 +41,7 @@ public class UserRequestSignUpDTO {
                 .password(this.password)
                 .userName(this.userName)
                 .address(this.address)
+                .userId(this.userId)
                 .profileImg(uploadedFilePath)
                 .build();
     }

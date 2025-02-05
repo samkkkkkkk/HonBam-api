@@ -27,6 +27,7 @@ public class LoginResponseDTO {
     private String phoneNumber;
     private String password;
     private String userId;
+    private String nickName;
 
 
 
@@ -39,8 +40,8 @@ public class LoginResponseDTO {
         this.userPay = String.valueOf(user.getUserPay());
         this.address = user.getAddress();
         this.phoneNumber = user.getPhoneNumber();
-        this.password = user.getPassword();
         this.userId = user.getId();
+        this.nickName = user.getUserId();
 
     }
 }

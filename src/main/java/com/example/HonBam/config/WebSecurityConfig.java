@@ -4,7 +4,6 @@ import com.example.HonBam.filter.JwtAuthFilter;
 import com.example.HonBam.filter.JwtExceptionFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -57,11 +56,13 @@ public class WebSecurityConfig {
                 .antMatchers("/api/auth/load-profile").authenticated()
                 .antMatchers("/api/recipe").permitAll()
                 .antMatchers("/api/tosspay/info").authenticated()
+                .antMatchers("/api/tosspay/confirm").authenticated()
                 .antMatchers("/api/tosspay/**").permitAll()
                 // '/api/auth'로 시작하는 요청과 '/'요청은 권한 검사 없이 허용하겠다.
                 .antMatchers("/", "/api/auth/**").permitAll()
                 .antMatchers("/api/freeboard").permitAll()
                 .antMatchers("/api/posts/**").permitAll()
+                .antMatchers("/ws/**").permitAll()
                 // '/api/HonBams'라는 요청이 POST로 들어오고, Role 값이 ADMIN인 경우 권한 검사 없이 허용하겠다.
 //                .antMatchers(HttpMethod.POST, "/api/HonBams").hasRole("ADMIN").permitAll()
                 // 위에서 따로 설정하지 않은 나머지 요청들은 권한 검사가 필요하다.

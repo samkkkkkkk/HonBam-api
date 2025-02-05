@@ -138,7 +138,7 @@ public class UserController {
 
 
     // 일반 회원을 프리미엄 회원으로 승격하는 요청 처리
-    @PostMapping("/paypromote")
+    @PutMapping("/paypromote")
     // 권한 검사 (해당 권한이 아니라면 인가처리 거부 -> 403 코드 리턴)
     // 메서드 호출 전에 권한 검사 -> 요청 당시 토큰에 있는 user 정보가 ROLE_COMMON이라는 권한을 가지고 있는지 검사.
     @PreAuthorize("hasRole('ROLE_NORMAL')")

@@ -38,6 +38,8 @@ dependencies {
     // api 사용 방법을 명세한 문서 라이브러리 (swagger)
     implementation 'org.springdoc:springdoc-openapi-ui:1.6.9'
 
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
     // json web token 라이브러리
     implementation 'io.jsonwebtoken:jjwt-api:0.11.2'
     implementation 'io.jsonwebtoken:jjwt-impl:0.11.2'
@@ -50,17 +52,20 @@ dependencies {
     // 파일 업로드 라이브러리
     implementation 'commons-io:commons-io:2.8.0'
 
+
     // https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple
     implementation group: 'com.googlecode.json-simple', name: 'json-simple', version: '1.1'
 
     // WebClient를 사용하기 위한 모듈
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
-    // 소스 코드 변경시 자동으로 페이지 리로드 해주는 라이브러리
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-
     // jackson
     implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    annotationProcessor 'org.projectlombok:lombok'
+
+
 
 
 }

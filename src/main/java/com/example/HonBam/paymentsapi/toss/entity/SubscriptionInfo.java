@@ -1,36 +1,31 @@
 package com.example.HonBam.paymentsapi.toss.entity;
 
+import com.example.HonBam.userapi.entity.User;
 import lombok.*;
-import org.springframework.format.annotation.DateTimeFormat;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 @Entity
-@ToString @EqualsAndHashCode
 @Getter
+@ToString
+@EqualsAndHashCode
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "hb_subscription")
 @Builder
-public class Subscription {
+@Table(name = "subscription_info")
+public class SubscriptionInfo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long subId;
+    private Long subInfoId;
 
     @NotNull
-    private int period;
+    private LocalDateTime dueDate;
 
-    @NotNull
-    private int price;
-
-    @NotNull
-    private String orderName;
-
-    private String description;
-
-
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
 }
