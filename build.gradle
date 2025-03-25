@@ -50,7 +50,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
     // 파일 업로드 라이브러리
-    implementation 'commons-io:commons-io:2.8.0'
+    implementation 'commons-io:commons-io:2.14.0'
 
 
     // https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple
@@ -65,6 +65,8 @@ dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     annotationProcessor 'org.projectlombok:lombok'
 
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
 
 
 

@@ -1,5 +1,6 @@
 package com.example.HonBam.userapi.entity;
 
+import com.example.HonBam.chatapi.entity.ChatRoomUser;
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
@@ -7,9 +8,12 @@ import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
-@ToString @EqualsAndHashCode(of = "id")
+@ToString(exclude = "chatRooms")
+@EqualsAndHashCode(of = "id")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -59,6 +63,10 @@ public class User {
     private String profileImg; // 프로필 이미지 경로
 
     private String accessToken; // 카카오 로그인시 발급받는 accessToken을 저장 -> 로그아웃 때 필요
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<ChatRoomUser> chatRoomUsers = new ArrayList<>();
+
 
     // 등급 수정 메서드
     public void changeRole(Role role) {

@@ -1,4 +1,4 @@
-package com.example.HonBam.paymentsapi.toss.util;
+package com.example.HonBam.chatapi;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;

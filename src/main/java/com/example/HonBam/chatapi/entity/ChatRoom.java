@@ -1,0 +1,29 @@
+package com.example.HonBam.chatapi.entity;
+
+import lombok.*;
+
+import javax.persistence.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Getter
+@Setter
+@ToString(exclude = "participants")
+@EqualsAndHashCode
+@NoArgsConstructor
+@AllArgsConstructor
+public class ChatRoom {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long roomId;
+
+    private String roomName;
+
+    @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ChatRoomUser> participants = new ArrayList<>();
+
+    private LocalDateTime lastMessageTime;
+}
