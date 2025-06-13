@@ -2,7 +2,6 @@ package com.example.HonBam.userapi.entity;
 
 import com.example.HonBam.chatapi.entity.ChatRoomUser;
 import lombok.*;
-import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.GenericGenerator;
 
@@ -12,8 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Getter
-@ToString(exclude = "chatRooms")
-@EqualsAndHashCode(of = "id")
+@ToString
+@EqualsAndHashCode(of = "userId")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -26,7 +25,7 @@ public class User {
     @Column(name = "id")
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
-    private String id; // 계정명이 아니라 식별 코드
+    private String Id; // 계정명이 아니라 식별 코드
 
     @Column(nullable = false, unique = true)
     private String email;

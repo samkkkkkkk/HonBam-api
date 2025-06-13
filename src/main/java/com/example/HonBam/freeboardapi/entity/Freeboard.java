@@ -1,8 +1,5 @@
 package com.example.HonBam.freeboardapi.entity;
 
-import com.example.HonBam.freeboardapi.dto.request.FreeboardRequestDTO;
-import com.example.HonBam.freeboardapi.dto.response.FreeboardResponseDTO;
-import com.example.HonBam.postapi.entity.Comment;
 import com.example.HonBam.userapi.entity.User;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -14,7 +11,6 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Stack;
 
 @Entity
 @Getter @Setter

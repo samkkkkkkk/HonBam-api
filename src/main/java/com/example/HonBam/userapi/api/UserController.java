@@ -22,9 +22,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.math.BigInteger;
-import java.nio.file.attribute.UserPrincipal;
-import java.security.SecureRandom;
 
 @RestController
 @Slf4j
@@ -290,7 +287,18 @@ public class UserController {
         }
     }
 
-
-
+    // s3에서 불러온 프로필 사진 처리
+    @GetMapping("/profile-s3")
+    public ResponseEntity<?> s3Profile(
+            @AuthenticationPrincipal TokenUserInfo userInfo
+    ){
+        try {
+            String profilePath = userService.findProfilePath(userInfo.getUserId());
+            return ResponseEntity.ok().body(profilePath);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 
 }

@@ -15,4 +15,8 @@ public class TokenUserInfo {
     private Role role;
     private UserPay userPay;
     private String nickName;
+    private String address;
+    private String phoneNumber;
+
 }
+

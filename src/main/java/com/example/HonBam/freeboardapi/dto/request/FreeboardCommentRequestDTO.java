@@ -2,8 +2,6 @@ package com.example.HonBam.freeboardapi.dto.request;
 
 import com.example.HonBam.freeboardapi.entity.Freeboard;
 import com.example.HonBam.freeboardapi.entity.FreeboardComment;
-import com.example.HonBam.postapi.entity.Comment;
-import com.example.HonBam.postapi.entity.Post;
 import com.example.HonBam.userapi.entity.User;
 import lombok.*;
 
@@ -21,7 +19,7 @@ public class FreeboardCommentRequestDTO {
                 .writer(user.getUserName())
                 .comment(this.comment)
                 .freeboard(freeboard)
-                .userId(user.getId())
+                .userId(user.getUserId())
                 .build();
     }
 }

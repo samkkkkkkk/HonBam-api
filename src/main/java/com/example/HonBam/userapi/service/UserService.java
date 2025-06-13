@@ -2,6 +2,7 @@ package com.example.HonBam.userapi.service;
 
 import com.example.HonBam.auth.TokenProvider;
 import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.aws.S3Service;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
@@ -38,6 +39,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
+    final S3Service s3Service;
 
     @Value("${kakao.client_id}")
     private String KAKAO_CLIENT_ID;
@@ -54,13 +56,14 @@ public class UserService {
     private String NAVER_CLIENT_SECRET;
 
 
-    @Value("${upload.path}")
-    private String uploadRootPath;
+//    @Value("${upload.path}")
+//    private String uploadRootPath;
 
     // 회원 가입 처리
     public UserSignUpResponseDTO create(
             final UserRequestSignUpDTO dto,
             final String uploadedFilePath
+
     ) {
         String email = dto.getEmail();
 
@@ -175,8 +178,8 @@ public class UserService {
     public String uploadProfileImage(MultipartFile profileImg) throws IOException {
 
         // 루트 디렉토리가 실존하는 지 확인 후 존재하지 않으면 생성.
-        File rootDir = new File(uploadRootPath);
-        if(!rootDir.exists()) rootDir.mkdirs();
+//        File rootDir = new File(uploadRootPath);
+//        if(!rootDir.exists()) rootDir.mkdirs();
 
         // 파일명을 유니크하게 변경 (이름 충돌 가능성을 대비)
         // UUID와 원본파일명을 혼합. -> 규칙은 없어요.
@@ -184,19 +187,21 @@ public class UserService {
                 = UUID.randomUUID() + "_" + profileImg.getOriginalFilename();
 
         // 파일을 저장
-        File uploadFile = new File(uploadRootPath + "/" + uniqueFileName);
-        profileImg.transferTo(uploadFile);
-
-        return uniqueFileName;
+//        File uploadFile = new File(uploadRootPath + "/" + uniqueFileName);
+//        profileImg.transferTo(uploadFile);
+//
+//        return uniqueFileName;
+        return s3Service.uploadToS3Bucket(profileImg.getBytes(), uniqueFileName);
     }
 
     public String findProfilePath(String userId) {
         User user = userRepository.findById(userId).orElseThrow();
+        return user.getProfileImg();
         // DB에 저장되는 profile_img는 파일명. -> service가 가지고 있는 Root Path와 연결해서 리턴.
-        if(user.getAccessToken() != null){
-            return user.getProfileImg();
-        }
-        return uploadRootPath + "/" + user.getProfileImg();
+//        if(user.getAccessToken() != null){
+//            return user.getProfileImg();
+//        }
+//        return uploadRootPath + "/" + user.getProfileImg();
 
 
     }
@@ -413,8 +418,6 @@ public class UserService {
 
 
         return responseData;
-
-
     }
 
     public LoginResponseDTO GoogleService(final String code) {

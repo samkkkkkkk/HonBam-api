@@ -3,7 +3,6 @@ package com.example.HonBam.userapi.dto.request;
 import com.example.HonBam.userapi.entity.User;
 import lombok.*;
 
-import javax.persistence.Column;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;

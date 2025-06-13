@@ -7,11 +7,7 @@ import com.example.HonBam.freeboardapi.dto.request.FreeboardCommentRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardRequestDTO;
 import com.example.HonBam.freeboardapi.dto.response.FreeboardDetailResponseDTO;
 import com.example.HonBam.freeboardapi.dto.response.FreeboardResponseDTO;
-import com.example.HonBam.freeboardapi.entity.Freeboard;
 import com.example.HonBam.freeboardapi.entity.FreeboardComment;
-import com.example.HonBam.postapi.dto.request.CommentCreateRequestDTO;
-import com.example.HonBam.postapi.dto.request.ModifyRequestDTO;
-import com.example.HonBam.postapi.entity.Comment;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -86,7 +82,6 @@ public class FreeboardController {
             @PathVariable("id") Long id,
             @RequestBody FreeboardRequestDTO RequestDTO
     ) {
-        System.out.println("수정 요청 성공");
         FreeboardDetailResponseDTO modifyContent = freeboardService.modify(userInfo, id, RequestDTO);
         return ResponseEntity.ok().body(modifyContent);
 
@@ -95,6 +90,7 @@ public class FreeboardController {
     // 게시글 상세보기
     @GetMapping("/detail/{id}")
     public ResponseEntity<?> detailContent(
+            @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable("id") Long id
     ){
 
@@ -126,18 +122,13 @@ public class FreeboardController {
     }
 
     // 댓글 삭제 요청
-    @DeleteMapping("/comment/{id}")
+    @DeleteMapping("/comment/{commentId}")
     public ResponseEntity<?> deleteComment(
             @AuthenticationPrincipal TokenUserInfo userInfo,
-            @PathVariable Long id
+            @PathVariable() Long commentId
     ) {
-        if(!freeboardService.validateWriter(userInfo, id)) {
-            return ResponseEntity.badRequest().body("fail");
-        }
 
-        return ResponseEntity.ok().body(freeboardService.commentDelete(userInfo, id));
-
-
+        return ResponseEntity.ok().body(freeboardService.commentDelete(userInfo, commentId));
 
     }
 

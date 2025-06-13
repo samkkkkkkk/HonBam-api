@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Getter @Setter
 @ToString @EqualsAndHashCode
@@ -17,19 +16,17 @@ public class FreeboardDetailResponseDTO {
     private String title;
     private String content;
     private String userName;
+    private String userId;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime date;
-
-    private String userId;
-
 
     public FreeboardDetailResponseDTO(Freeboard freeboard) {
         this.id = freeboard.getId();
         this.title = freeboard.getTitle();
         this.content = freeboard.getContent();
         this.userName = freeboard.getUser().getUserName();
-        this.userId = freeboard.getUser().getId();
+        this.userId = freeboard.getUser().getUserId();
         if(freeboard.getUpdateDate() != null){
             this.date = freeboard.getUpdateDate();
         }else {

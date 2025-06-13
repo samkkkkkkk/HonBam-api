@@ -26,7 +26,7 @@ public class RecipeController {
             return ResponseEntity.ok().body(allRecipes);
         } catch (Exception e) {
             e.printStackTrace();
-            log.error("Error fetching recipes", e);
+//            log.error("Error fetching recipes", e);
             return  ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -38,7 +38,7 @@ public class RecipeController {
             return ResponseEntity.ok().body(searchResults);
         } catch (Exception e) {
             e.printStackTrace();
-            log.error("Error searching recipes", e);
+//            log.error("Error searching recipes", e);
             return ResponseEntity.badRequest().body(e.getMessage());
         }
 

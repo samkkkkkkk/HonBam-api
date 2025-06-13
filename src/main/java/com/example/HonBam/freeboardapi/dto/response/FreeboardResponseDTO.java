@@ -1,10 +1,8 @@
 package com.example.HonBam.freeboardapi.dto.response;
 
 
-import com.example.HonBam.freeboardapi.entity.Freeboard;
 import lombok.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
