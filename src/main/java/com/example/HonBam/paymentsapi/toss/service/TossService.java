@@ -29,8 +29,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Consumer;
 
-import static com.example.HonBam.config.TossPaymentsConfig.getTOSS_CANCEL_URL;
-import static com.example.HonBam.config.TossPaymentsConfig.getTOSS_URl;
+//import static com.example.HonBam.config.TossPaymentsConfig.getTOSS_CANCEL_URL;
+//import static com.example.HonBam.config.TossPaymentsConfig.getTOSS_URl;
 
 @Service
 @Slf4j
@@ -148,7 +148,7 @@ public class TossService {
 //        String orderId = requestDTO.getOrderId();
 
         // 요청 uri
-        String requestURI = getTOSS_URl() + "/orders/{orderId}";
+        String requestURI = "https://api.tosspayments.com/v1/payments" + "/orders/{orderId}";
 
         // SecretKey
         String tossSecretKey = tossPaymentsConfig.getTossSecretKey();
@@ -213,7 +213,7 @@ public class TossService {
         );
 
         // 요청 URI
-        String requestURI = getTOSS_URl() + "/{paymentKey}";
+        String requestURI = "https://api.tosspayments.com/v1/payments" + "/{paymentKey}";
 
         // SecretKey
         String tossSecretKey = tossPaymentsConfig.getTossSecretKey();
@@ -243,7 +243,7 @@ public class TossService {
     private TosspaymentRequestDTO getMapResponseEntity(String orderId, String paymentKey, int amount, String authorizations) {
 
         // 요청 URI
-        String requestURI = getTOSS_URl() + "/confirm";
+        String requestURI = "https://api.tosspayments.com/v1/payments" + "/confirm";
 
         // SecretKey
         String tossSecretKey = tossPaymentsConfig.getTossSecretKey();
@@ -300,7 +300,7 @@ public class TossService {
         String authorizations = getEncodedKey(tossPaymentsConfig.getTossSecretKey());
 
         String paymentKey = reqDTO.getPaymentKey();
-        String requestURI = getTOSS_CANCEL_URL();
+        String requestURI = "https://api.tosspayments.com/v1/payments/{paymentKey}/cancel";
 
         log.info("환불요청 보냄");
 

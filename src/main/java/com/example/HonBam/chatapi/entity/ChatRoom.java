@@ -22,6 +22,8 @@ public class ChatRoom {
 
     private String roomName;
 
+    private String avatarUrl; // 채팅방의 아바타 이미지 URL
+
     @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatRoomUser> participants = new ArrayList<>();
 

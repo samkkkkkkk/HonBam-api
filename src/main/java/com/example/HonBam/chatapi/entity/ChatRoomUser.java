@@ -17,14 +17,14 @@ public class ChatRoomUser {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private String chatUserId;
+    private Long chatUserId;
 
     @ManyToOne
-    @JoinColumn(name = "rood_id", nullable = false)
+    @JoinColumn(name = "room_id", nullable = false)
     private ChatRoom chatRoom;
 
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "id", nullable = false)
     private User user;
 
     private LocalDateTime joinedAt;

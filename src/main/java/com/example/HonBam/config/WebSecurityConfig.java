@@ -63,7 +63,13 @@ public class WebSecurityConfig {
                 .antMatchers("/api/freeboard").permitAll()
                 .antMatchers("/api/posts/**").permitAll()
                 .antMatchers("/ws-chat/**").permitAll()
-                .antMatchers("redis/**").permitAll()
+                .antMatchers("/chat/**").permitAll()
+                .antMatchers("/redis/**").permitAll()
+                .antMatchers("/chatRooms/**").permitAll()
+                .antMatchers("/topic/**").permitAll()
+                .antMatchers("/app/**").permitAll()
+
+
                 // '/api/HonBams'라는 요청이 POST로 들어오고, Role 값이 ADMIN인 경우 권한 검사 없이 허용하겠다.
 //                .antMatchers(HttpMethod.POST, "/api/HonBams").hasRole("ADMIN").permitAll()
                 // 위에서 따로 설정하지 않은 나머지 요청들은 권한 검사가 필요하다.

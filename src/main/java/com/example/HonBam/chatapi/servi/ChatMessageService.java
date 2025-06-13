@@ -29,15 +29,15 @@ public class ChatMessageService {
         ChatRoom chatRoom = chatRoomRepository.findById(Long.valueOf(messageDto.getRoomId()))
                 .orElseThrow(() -> new RuntimeException("채팅방이 존재하지 않습니다."));
 
-        User sender = userRepository.findById(messageDto.getSender())
+        User sender = userRepository.findById(messageDto.getSenderId())
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
         // ChatMessage 객체 생성
         ChatMessage message = ChatMessage.builder()
                 .chatRoom(chatRoom)
                 .sender(sender)
-                .message(messageDto.getContent())
-                .timestamp(LocalDateTime.now())
+                .message(messageDto.getMessage())
+                .messageTime(LocalDateTime.now())
                 .build();
 
         // 메시지 저장
