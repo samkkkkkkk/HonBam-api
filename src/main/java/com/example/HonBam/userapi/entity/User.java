@@ -25,12 +25,12 @@ public class User {
     @Column(name = "id")
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
-    private String Id; // 계정명이 아니라 식별 코드
+    private String id; // 계정명이 아니라 식별 코드
 
     @Column(nullable = false, unique = true)
     private String email;
 
-    private String userId;
+    private String nickName;
 
     private String phoneNumber;
 

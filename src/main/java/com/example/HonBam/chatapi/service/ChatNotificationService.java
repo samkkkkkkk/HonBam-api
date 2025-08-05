@@ -1,6 +1,6 @@
 package com.example.HonBam.chatapi.service;
 
-import com.example.HonBam.chatapi.dto.ChatRoomResponseDTO;
+import com.example.HonBam.chatapi.dto.response.ChatRoomResponseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;

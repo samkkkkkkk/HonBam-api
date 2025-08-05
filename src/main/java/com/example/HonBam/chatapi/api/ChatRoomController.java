@@ -1,9 +1,9 @@
 package com.example.HonBam.chatapi.api;
 
 import com.example.HonBam.auth.TokenUserInfo;
-import com.example.HonBam.chatapi.dto.ChatRoomRequest;
-import com.example.HonBam.chatapi.dto.ChatRoomResponseDTO;
-import com.example.HonBam.chatapi.dto.InviteRequest;
+import com.example.HonBam.chatapi.dto.request.ChatRoomRequest;
+import com.example.HonBam.chatapi.dto.response.ChatRoomResponseDTO;
+import com.example.HonBam.chatapi.dto.request.InviteRequest;
 import com.example.HonBam.chatapi.entity.ChatRoom;
 import com.example.HonBam.chatapi.service.ChatRoomService;
 import lombok.RequiredArgsConstructor;
@@ -52,8 +52,8 @@ public class ChatRoomController {
 
     @GetMapping("/myrooms")
     public ResponseEntity<?> getMyChatRooms(@AuthenticationPrincipal TokenUserInfo userInfo) {
-        log.info("Request to fetch chat rooms for user: {}", userInfo.getUserId());
-        List<ChatRoomResponseDTO> myRooms = chatRoomService.findMyChatRooms(userInfo.getUserId());
+        log.info("Request to fetch chat rooms for user: {}", userInfo.getEmail());
+        List<ChatRoomResponseDTO> myRooms = chatRoomService.findMyChatRooms(userInfo.getEmail());
         return ResponseEntity.ok().body(myRooms);
     }
 

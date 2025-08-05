@@ -2,13 +2,12 @@ package com.example.HonBam.chatapi.api;
 
 // import com.example.HonBam.chatapi.component.RedisPublisher; // RabbitMQ 사용으로 RedisPublisher 제거
 
-import com.example.HonBam.chatapi.dto.ChatMessageDTO;
-import com.example.HonBam.chatapi.dto.ChatUserResponseDTO;
-import com.example.HonBam.chatapi.entity.ChatMessage;
-import com.example.HonBam.chatapi.servi.ChatMessageService;
+import com.example.HonBam.chatapi.dto.request.ChatMessageRequestDTO;
+import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
+import com.example.HonBam.chatapi.dto.response.ChatUserResponseDTO;
+import com.example.HonBam.chatapi.service.ChatMessageService;
 import com.example.HonBam.chatapi.service.ChatRoomService;
 import com.example.HonBam.chatapi.service.ChatService;
-import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -32,19 +31,18 @@ public class ChatController {
     private final ChatRoomService chatRoomService;
     // private final RedisPublisher redisPublisher; // RabbitMQ 사용으로 제거
     private final ChatMessageService chatMessageService;
-    private final UserRepository userRepository;
     private final ChatService chatService;
     private final SimpMessagingTemplate messagingTemplate; // 메시지 전송을 위해 추가
 
 //     특정 채팅방(roomId)으로 메세지를 전달
 //    @MessageMapping("/chat/{roomId}")
 //    @SendTo("/topic/chatroom/{roomId}")
-//    public ChatMessageDTO sendMessage(@DestinationVariable String roomId, ChatMessageDTO message) {
+//    public ChatMessageResponseDTO sendMessage(@DestinationVariable String roomId, ChatMessageRequestDTO message) {
 //        return message;
 //    }
 
     @MessageMapping("/chat/send")
-    public void sendMessage(@Payload ChatMessageDTO message) {
+    public void sendMessage(@Payload ChatMessageRequestDTO message) {
 
         log.info("Received message: {}", message);
         // 채팅방에 속한 사용자만 메세지를 보낼 수 있도록 검증
@@ -76,7 +74,7 @@ public class ChatController {
     public ResponseEntity<?> getChatHistory(@PathVariable(name = "roomId") String roomId) {
 
         log.info("Request to fetch chat history for room: {}", roomId);
-        List<ChatMessageDTO> chatHistory = chatService.getChatHistory(roomId);
+        List<ChatMessageResponseDTO> chatHistory = chatService.getChatHistory(roomId);
         if (chatHistory.isEmpty()) {
             return ResponseEntity.noContent().build(); // 채팅 기록이 없을 경우 204 No Content 반환
         }

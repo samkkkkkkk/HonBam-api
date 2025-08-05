@@ -1,7 +1,7 @@
 package com.example.HonBam.freeboardapi.api;
 
 import com.example.HonBam.auth.TokenUserInfo;
-import com.example.HonBam.freeboardapi.Service.FreeboardService;
+import com.example.HonBam.freeboardapi.service.FreeboardService;
 import com.example.HonBam.freeboardapi.dto.request.CommentModifyRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardCommentRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardRequestDTO;

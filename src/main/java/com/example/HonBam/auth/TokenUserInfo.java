@@ -10,7 +10,6 @@ import lombok.*;
 @Builder
 public class TokenUserInfo {
 
-    private String userId;
     private String email;
     private Role role;
     private UserPay userPay;

@@ -1,4 +1,3 @@
-version: "3.9"  # 반드시 명시하세요!
 
 services:
   mysql:
@@ -36,18 +35,19 @@ services:
       - app-network
 
   rabbitmq:
-    image: rabbitmq:management
+    image: rabbitmq:3.13.0-management
     container_name: rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+      - "61613:61613"  # STOMP
+      - "61614:61614"  # STOMP over TLS(옵션)
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_DEFAULT_VHOST: /
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     command: >
-      sh -c "rabbitmq-plugins enable rabbitmq_stomp &&
-             rabbitmq-server"
+      bash -c "rabbitmq-plugins enable --offline rabbitmq_stomp rabbitmq_web_stomp &&
+               rabbitmq-server"
     networks:
       - app-network
 
@@ -57,7 +57,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ~/.gradle:/home/gradle/.gradle
-      - C:/MyWork/honbam_upload:/upload  # 호스트의 폴더를 컨테이너 /upload로 연결
+      - ./honbam_upload:/honbam_upload # 호스트의 폴더를 컨테이너 /upload로 연결
     container_name: springboot
     ports:
       - "8181:8181"
@@ -77,8 +77,8 @@ services:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - PAYMENT_TOSS_TEST_CLIENT_API_KEY=${PAYMENT_TOSS_TEST_CLIENT_API_KEY}
       - PAYMENT_TOSS_TEST_CLIENT_API_KEY_SECRET=${PAYMENT_TOSS_TEST_CLIENT_API_KEY_SECRET}
-      - PAYMENT_TOSS_SUCCESS_URL=${PAYMENT_TOSS_SUCCESS_URL}
-      - PAYMENT_TOSS_FAIL_URL=${PAYMENT_TOSS_FAIL_URL}
+#      - PAYMENT_TOSS_SUCCESS_URL=${PAYMENT_TOSS_SUCCESS_URL}
+#      - PAYMENT_TOSS_FAIL_URL=${PAYMENT_TOSS_FAIL_URL}
       - KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
       - KAKAO_REDIRECT_URL=${KAKAO_REDIRECT_URL}
       - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}

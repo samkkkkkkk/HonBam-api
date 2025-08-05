@@ -1,6 +1,6 @@
 package com.example.HonBam.chatapi.service;
 
-import com.example.HonBam.chatapi.dto.ChatRoomResponseDTO;
+import com.example.HonBam.chatapi.dto.response.ChatRoomResponseDTO;
 import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.ChatRoom;
 import com.example.HonBam.chatapi.entity.ChatRoomUser;
@@ -9,6 +9,8 @@ import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
+import com.example.HonBam.exception.ChatRoomNotFoundException;
+import com.example.HonBam.exception.UserNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -55,13 +57,13 @@ public class ChatRoomService {
 
         // 사용자를 채팅방에 추가
 //        for (String userId : userIds) {
-//            User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("사용자가 존재하지 않습니다."));
+//            User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("사용자가 존재하지 않습니다."));
 //            ChatRoomUser chatRoomUser = new ChatRoomUser(user, chatRoom);
 //            chatRoomUserRepository.save(chatRoomUser);
 //
 //        }
 
-        userIds.stream().map(userid -> userRepository.findById(userid).orElseThrow(() -> new RuntimeException("사용자가 존재하지 않습니다.")))
+        userIds.stream().map(userid -> userRepository.findById(userid).orElseThrow(() -> new UserNotFoundException("사용자가 존재하지 않습니다.")))
                 .forEach(user -> {
                     ChatRoomUser chatroomUser = new ChatRoomUser(user, savedChatRoom);
                     chatRoomUserRepository.save(chatroomUser);
@@ -90,14 +92,14 @@ public class ChatRoomService {
     public void inviteUser(Long chatRoomId, String userId) {
 
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "채팅방이 존재하지 않습니다: " + chatRoomId));
+                .orElseThrow(() -> new ChatRoomNotFoundException("채팅방이 존재하지 않습니다: " + chatRoomId));
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다: " + userId));
+                .orElseThrow(() -> new UserNotFoundException("존재하지 않는 사용자입니다: " + userId));
 
         // 중복 초대 방지
         if (chatRoomUserRepository.existsByChatRoom_RoomIdAndUser_Id(chatRoomId, userId)) {
-            throw new RuntimeException("이미 존재하는 사용자입니다.");
+            throw new IllegalArgumentException("이미 존재하는 사용자입니다.");
         }
 
         // 새로운 관계 추가
@@ -108,7 +110,7 @@ public class ChatRoomService {
 
     public List<ChatRoomResponseDTO> findMyChatRooms(String userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
         // 사용자가 참여하고 있는 채팅방 목록 조회
         // ChatRoomRepository에 findByChatRoomUsers_User_Id 와 같은 메소드가 정의되어 있다고 가정

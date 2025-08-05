@@ -13,7 +13,7 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     List<ChatRoom> findAllOrderByLastMessageTime();
 
     // 채팅방에 특정 사용자가 포함되어 있는지 확인하는 쿼리 메서드
-    boolean existsByRoomIdAndParticipants_chatUserId(Long roomId, String userId);
+    boolean existsByRoomIdAndParticipants_chatUserId(Long roomId, String Id);
 
-    List<ChatRoom> findByParticipants_User_Id(String userId);
+    List<ChatRoom> findByParticipants_User_Id(String Id);
 }

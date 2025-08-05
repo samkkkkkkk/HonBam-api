@@ -1,4 +1,4 @@
-package com.example.HonBam.freeboardapi.Service;
+package com.example.HonBam.freeboardapi.service;
 
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.freeboardapi.dto.request.CommentModifyRequestDTO;
@@ -37,7 +37,7 @@ public class FreeboardService {
             final FreeboardRequestDTO requestDto,
             final TokenUserInfo userInfo) {
 
-        User user = getUser(userInfo.getUserId());
+        User user = getUser(userInfo.getEmail());
         freeboardRepository.save(requestDto.toEntity(user));
         
         return retrieve();
@@ -94,7 +94,7 @@ public class FreeboardService {
 
     // 게시글 수정하기
     public FreeboardDetailResponseDTO modify(TokenUserInfo userInfo, Long id, FreeboardRequestDTO requestDTO) {
-        User user = getUser(userInfo.getUserId());
+        User user = getUser(userInfo.getEmail());
 //        freeboardRepository.save(requestDTO.toEntity(user));
         Freeboard foundContents = freeboardRepository.findById(id).orElseThrow();
 
@@ -112,7 +112,7 @@ public class FreeboardService {
             final TokenUserInfo userInfo
     ) {
 
-        User user = getUser(userInfo.getUserId());
+        User user = getUser(userInfo.getEmail());
         Freeboard freeboard = freeboardRepository.findById(dto.getId()).orElseThrow();
 
         freeboardCommentRepository.save(dto.toEntity(user, freeboard));
@@ -140,11 +140,10 @@ public class FreeboardService {
     public boolean validateWriter(TokenUserInfo userInfo, Long id) {
         if(freeboardCommentRepository.findById(id).isPresent()) {
             FreeboardComment comment = freeboardCommentRepository.findById(id).orElseThrow();
-            return comment.getUserId().equals(userInfo.getUserId());
+            return comment.getUserId().equals(userInfo.getEmail());
         }
-        if(freeboardRepository.findById(id).isPresent()){
-            Freeboard freeboard = freeboardRepository.findById(id).orElseThrow();
-            return freeboard.getUser().getUserId().equals(userInfo.getUserId());
+        if(freeboardRepository.findById(id).isPresent()){            Freeboard freeboard = freeboardRepository.findById(id).orElseThrow();
+            return freeboard.getUser().getUserId().equals(userInfo.getEmail());
         }
         return false;
     }

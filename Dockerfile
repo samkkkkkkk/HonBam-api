@@ -1,18 +1,22 @@
-# Build Stage
-FROM gradle:8.5-jdk17 AS builder
+# --- 1단계: 빌드 ---
+FROM eclipse-temurin:17-jdk AS builder
 WORKDIR /app
 
-COPY build.gradle settings.gradle gradlew ./
-COPY gradle ./gradle
-RUN ./gradlew build -x test --no-daemon || true
+# Gradle 래퍼와 설정 먼저 복사
+COPY gradlew .
+COPY gradle gradle/
+COPY settings.gradle build.gradle ./
+# 소스 마지막에 복사
+COPY src src/
 
-COPY src ./src
-RUN ./gradlew build -x test --no-daemon
+# 실행 권한 부여 & CRLF 방지
+RUN chmod +x gradlew && sed -i 's/\r$//' gradlew
 
-# Runtime Stage
-FROM openjdk:17-jdk-slim
+# 의존성 캐시 재사용
+RUN ./gradlew clean build -x test --no-daemon
+
+# --- 2단계: 런타임 ---
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
-
-EXPOSE 8181
-CMD ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java","-jar","/app/app.jar"]

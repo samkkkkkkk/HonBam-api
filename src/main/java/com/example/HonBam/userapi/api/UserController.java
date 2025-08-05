@@ -173,7 +173,7 @@ public class UserController {
             // 클라이언트가 요청한 프로필 사진을 응답해야 함.
             // 1. 프로필 사진의 경로부터 얻어야 한다!
             String filePath
-                    = userService.findProfilePath(userInfo.getUserId());
+                    = userService.findProfilePath(userInfo.getEmail());
 
             // 2. 얻어낸 파일 경로를 통해 실제 파일 데이터를 로드하기.
             File profileFile = new File(filePath);
@@ -238,28 +238,14 @@ public class UserController {
         return ResponseEntity.ok().body(responseDTO);
     }
 
-    @GetMapping("/naverLogin")
-    public ResponseEntity<?> naverLogin(@RequestParam("code") String code) {
-        log.info("/api/auth/naverLogin - GET! -code: {}", code);
-        LoginResponseDTO responseDTO = userService.NaverService(code);
 
-        return ResponseEntity.ok().body(responseDTO);
-    }
-
-    @GetMapping("/googleLogin")
-    public ResponseEntity<?> googleLogin(@RequestParam("code") String code) {
-        log.info("/api/auth/naverLogin - GET! -code: {}", code);
-        LoginResponseDTO responseDTO = userService.GoogleService(code);
-
-        return ResponseEntity.ok().body(responseDTO);
-    }
 
     // 로그아웃 처리
     @GetMapping("/logout")
     public ResponseEntity<?> logout(
             @AuthenticationPrincipal TokenUserInfo userInfo
     ) {
-        log.info("/api/auth/logout - GET! - user: {}", userInfo.getUserId());
+        log.info("/api/auth/logout - GET! - user: {}", userInfo.getEmail());
 
         String result = userService.logout(userInfo);
         return ResponseEntity.ok().body(result);
@@ -274,10 +260,10 @@ public class UserController {
 
         try {
             // TokenUserInfo에서 userId를 추출합니다.
-            String userId = userInfo.getUserId();
+            String email = userInfo.getEmail();
 
             // userId를 이용하여 해당 사용자를 삭제합니다.
-            userService.delete(userId);
+            userService.delete(email);
 
             return ResponseEntity.ok().body("회원 탈퇴가 정상적으로 처리되었습니다. " + userInfo.getEmail() + "님, 서비스를 이용해 주셔서 감사합니다.");
         } catch (Exception e) {
@@ -293,7 +279,7 @@ public class UserController {
             @AuthenticationPrincipal TokenUserInfo userInfo
     ){
         try {
-            String profilePath = userService.findProfilePath(userInfo.getUserId());
+            String profilePath = userService.findProfilePath(userInfo.getEmail());
             return ResponseEntity.ok().body(profilePath);
         } catch (Exception e) {
             e.printStackTrace();
