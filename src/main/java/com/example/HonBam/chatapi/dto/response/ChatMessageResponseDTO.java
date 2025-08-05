@@ -22,7 +22,7 @@ public class ChatMessageResponseDTO {
     public ChatMessageResponseDTO(ChatMessage chatMessage) {
         this.roomId = chatMessage.getChatRoom().getRoomId().toString();
         this.senderId = chatMessage.getSender().getId();
-        this.senderName = chatMessage.getSender().getUserId(); // 닉네임
+        this.senderName = chatMessage.getSender().getNickName(); // 닉네임
         this.message = chatMessage.getMessage();
         this.timestamp = chatMessage.getMessageTime();
     }

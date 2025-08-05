@@ -1,5 +1,9 @@
 .env
 
+*.log
+app.log.*
+honbam_upload/
+
 # dependencies
 /node_modules
 /.pnp
