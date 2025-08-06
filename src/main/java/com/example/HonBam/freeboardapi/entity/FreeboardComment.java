@@ -1,5 +1,6 @@
 package com.example.HonBam.freeboardapi.entity;
 
+import com.example.HonBam.userapi.entity.User;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
@@ -36,8 +37,10 @@ public class FreeboardComment {
     @UpdateTimestamp
     private LocalDateTime updateTime;// 수정시간
 
-    @Column(nullable = false)
-    private String userId;
+    // FreeboardComment.java
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id")

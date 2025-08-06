@@ -51,7 +51,7 @@ public class ChatRoomController {
     }
 
     @GetMapping("/myrooms")
-    public ResponseEntity<?> getMyChatRooms(@AuthenticationPrincipal TokenUserInfo userInfo) {
+    public ResponseEntity<?> getMyChatRooms(@AuthenticationPrincipal CustomUserDetails userDetails) {
         log.info("Request to fetch chat rooms for user: {}", userInfo.getEmail());
         List<ChatRoomResponseDTO> myRooms = chatRoomService.findMyChatRooms(userInfo.getEmail());
         return ResponseEntity.ok().body(myRooms);

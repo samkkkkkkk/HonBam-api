@@ -45,7 +45,7 @@ public class WidgetController {
 
     // 승인 전 주문정보
     @PostMapping("/info")
-    public ResponseEntity<?> paymentInfo(@AuthenticationPrincipal TokenUserInfo userInfo,
+    public ResponseEntity<?> paymentInfo(@AuthenticationPrincipal CustomUserDetails userDetails,
                                          @RequestBody PaymentInfoRequestDTO requestDTO) {
         log.info("/api/tosspay/info 요청이 들어옴");
         tossService.savePaymentInfo(requestDTO, userInfo);
@@ -55,7 +55,7 @@ public class WidgetController {
     // 결제 승인 요청
     @PostMapping("/confirm")
     public @ResponseBody ResponseEntity<?> confirmPayment(@RequestBody PaymentConfirmReqDTO requestDTO,
-                                                @AuthenticationPrincipal TokenUserInfo userInfo ) {
+                                                @AuthenticationPrincipal CustomUserDetails userDetails ) {
         try {
            TossPaymentResponseDTO confirmDTO = tossService.confirm(requestDTO, userInfo);
             return ResponseEntity.ok().body(confirmDTO);
@@ -131,7 +131,7 @@ public class WidgetController {
 //    }
 
     @PostMapping("/cancel")
-    public ResponseEntity<?> tossCancel(@AuthenticationPrincipal TokenUserInfo userInfo,
+    public ResponseEntity<?> tossCancel(@AuthenticationPrincipal CustomUserDetails userDetails,
                                         @RequestBody  PaymentConfirmReqDTO reqDTO) {
         log.info("/cancel 요청이 들어옴");
         TossPaymentResponseDTO responseDTO = null;
@@ -145,7 +145,7 @@ public class WidgetController {
 
     // 주문정보 조회 요청
     @PostMapping("/order/{orderKey}")
-    public ResponseEntity<?> tossOrder(@AuthenticationPrincipal TokenUserInfo userInfo,
+    public ResponseEntity<?> tossOrder(@AuthenticationPrincipal CustomUserDetails userDetails,
                                                             @PathVariable(value = "orderKey") String orderKey) {
         TossPaymentResponseDTO responseDTO = tossService.getOrderInfoByOrderId(orderKey);
         try {

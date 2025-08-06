@@ -1,5 +1,6 @@
 package com.example.HonBam.filter;
 
+import com.example.HonBam.auth.CustomUserDetailsService;
 import com.example.HonBam.auth.TokenProvider;
 import com.example.HonBam.auth.TokenUserInfo;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -30,6 +31,7 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final TokenProvider tokenProvider;
+    private final CustomUserDetailsService customUserDetailsService;
 
     // 필터가 해야 할 작업을 기술
     @Override
@@ -42,43 +44,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             log.info("JWT Token Filter is running... - token: {}", token);
 
             // 토큰 위조검사 및 인증 완료 처리
-            if(token != null && !token.equals("null")) {
+            if (token != null && !token.equals("null")) {
                 // 토큰 서명 위조 검사와 토큰을 파싱해서 클레임을 얻어내는 작업
                 TokenUserInfo userInfo
                         = tokenProvider.validateAndGetTokenUserInfo(token);
 
                 log.info("TokenUserInfo In JwtAuthFilter: {}", userInfo.toString());
 
-                // 인가 정보 리스트 (권한이 여러개 존재할 경우 리스트로 권한 체크에 사용할 필드를 add)
-                // 우리는 Role 타입의 필드 하나만으로 권한을 체크하기 때문에 하나만 add
-                List<SimpleGrantedAuthority> authorityList = new ArrayList<>();
-                authorityList.add(new SimpleGrantedAuthority("ROLE_" + userInfo.getUserPay().toString()));
-                log.info("authorityList: {}", authorityList);
+                // userId로 DB에서 유저 조회
+                var userDetails = customUserDetailsService.loadUserByUsername(userInfo.getUserId());
 
-                // 인증 완료 처리
-                // (스프링 시큐리티에게 인증정보를 전달해서 전역적으로 어플리케이션에서
-                // 인증 정보를 활용할 수 있게 설정)
-                AbstractAuthenticationToken auth
-                        = new UsernamePasswordAuthenticationToken(
-                        userInfo, // 컨트롤러에서 활용할 유저 정보
-                        null, // 인증된 사용자의 비밀번호 - 보통 null값
-                        authorityList // 인가 정보 (권한 정보)
+                var authentication = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities()
                 );
-
-                // 인증 완료 처리 시 클라이언트의 요청 정보 세팅
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                // 스프링 시큐리티 컨테이너에 인증 정보 객체 등록
-                 SecurityContextHolder.getContext().setAuthentication(auth);
-
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-        }  catch(ExpiredJwtException e) {
-            log.warn("토큰의 기한이 만료되었습니다");
-            throw new JwtException("토큰 기한 만료!");
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            log.warn("서명이 일치하지 않습니다! 토큰이 위조 되었습니다!");
+        }catch (Exception e) {
+            log.warn("JWT 인증 과정에서 예외 발생: {}", e.getMessage());
         }
 
         // 필터 체인에 내가 만든 필터 실행 명령
@@ -96,7 +79,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // 요청 헤더에서 가져온 토큰은 순수 토큰 값이 아닌
         // 앞에 Bearer가 붙어있으니 이것을 제거하는 작업
         if(StringUtils.hasText(bearerToken)
-                && bearerToken.startsWith("Bearer")) {
+                && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
         return null;
