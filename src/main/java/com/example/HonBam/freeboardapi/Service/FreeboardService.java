@@ -1,9 +1,10 @@
-package com.example.HonBam.freeboardapi.Service;
+package com.example.HonBam.freeboardapi.service;
 
-import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.freeboardapi.dto.request.CommentModifyRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardCommentRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardRequestDTO;
+import com.example.HonBam.freeboardapi.dto.response.FreeboardCommentResponseDTO;
 import com.example.HonBam.freeboardapi.dto.response.FreeboardDetailResponseDTO;
 import com.example.HonBam.freeboardapi.dto.response.FreeboardResponseDTO;
 import com.example.HonBam.freeboardapi.entity.Freeboard;
@@ -32,13 +33,14 @@ public class FreeboardService {
     private final FreeboardCommentRepository freeboardCommentRepository;
 
 
-    // 게시글 등록
+   // 게시물 작성
     public FreeboardResponseDTO createContent(
             final FreeboardRequestDTO requestDto,
-            final TokenUserInfo userInfo) {
+            final CustomUserDetails userDetails) {
 
-        User user = getUser(userInfo.getUserId());
+        User user = userDetails.getUser();
         freeboardRepository.save(requestDto.toEntity(user));
+        
         return retrieve();
     }
 
@@ -62,6 +64,7 @@ public class FreeboardService {
 
     // 게시글 리스트 
     public FreeboardResponseDTO retrieve() {
+
 
 //        // 로그인 한 유저의 정보를 데이터베이스 조회
 //        User user = getUser(userId);
@@ -91,8 +94,8 @@ public class FreeboardService {
 
 
     // 게시글 수정하기
-    public FreeboardDetailResponseDTO modify(TokenUserInfo userInfo, Long id, FreeboardRequestDTO requestDTO) {
-        User user = getUser(userInfo.getUserId());
+    public FreeboardDetailResponseDTO modify(CustomUserDetails userDetails, Long id, FreeboardRequestDTO requestDTO) {
+        User user = userDetails.getUser();
 //        freeboardRepository.save(requestDTO.toEntity(user));
         Freeboard foundContents = freeboardRepository.findById(id).orElseThrow();
 
@@ -105,48 +108,46 @@ public class FreeboardService {
     // 댓글 서비스 시작
 
     // 댓글 등록
-    public List<FreeboardComment> commentRegist(
-//         final String postId,
+    public List<FreeboardCommentResponseDTO> commentRegist(
             final FreeboardCommentRequestDTO dto,
-            final TokenUserInfo userInfo
+            final CustomUserDetails userDetails
     ) {
 
-        User user = getUser(userInfo.getUserId());
+        User user = userDetails.getUser();
         Freeboard freeboard = freeboardRepository.findById(dto.getId()).orElseThrow();
+
         freeboardCommentRepository.save(dto.toEntity(user, freeboard));
-        return freeboard.getCommentList();
+
+        return freeboardCommentRepository.findCommentsWithNicknameByPostId(freeboard.getId());
 
     }
 
-    // 목록 요청
-    public List<FreeboardComment> commentList(Long id) {
-        return freeboardRepository.findById(id).orElseThrow().getCommentList();
+    // 댓글 목록 요청
+    public List<FreeboardCommentResponseDTO> commentList(Long id) {
+        return freeboardCommentRepository.findCommentsWithNicknameByPostId(id);
     }
 
+
+
+    // 댓글 유효성 검사
     // 삭제요청
-    public List<FreeboardComment> commentDelete(TokenUserInfo userInfo, Long commentId) {
+    public List<FreeboardCommentResponseDTO> commentDelete(CustomUserDetails userDetails, Long commentId) {
         FreeboardComment comment = freeboardCommentRepository.findById(commentId).orElseThrow();
         freeboardCommentRepository.deleteById(commentId);
         return commentList(comment.getFreeboard().getId());
     }
 
     // 유효성 검사
-    public boolean validateWriter(TokenUserInfo userInfo, Long id) {
+    public boolean validateWriter(CustomUserDetails userDetails, Long id) {
         if(freeboardCommentRepository.findById(id).isPresent()) {
             FreeboardComment comment = freeboardCommentRepository.findById(id).orElseThrow();
-            return comment.getUserId().equals(userInfo.getUserId());
+            return comment.getUserId().equals(userInfo.getEmail());
         }
-        if(freeboardRepository.findById(id).isPresent()){
-            Freeboard freeboard = freeboardRepository.findById(id).orElseThrow();
-            return freeboard.getUser().getUserId().equals(userInfo.getUserId());
+        if(freeboardRepository.findById(id).isPresent()){            Freeboard freeboard = freeboardRepository.findById(id).orElseThrow();
+            return freeboard.getUser().getUserId().equals(userInfo.getEmail());
         }
         return false;
     }
-
-//    public boolean validateWriter2(TokenUserInfo userInfo, Long id) {
-//        Freeboard freeboard = freeboardRepository.findById(id).orElseThrow();
-//        return freeboard.getUser().getId().equals(userInfo.getUserId());
-//    }
 
     // 댓글 수정
     public List<FreeboardComment> modify(CommentModifyRequestDTO requestDTO) {

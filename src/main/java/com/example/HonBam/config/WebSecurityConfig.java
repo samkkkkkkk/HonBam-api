@@ -4,7 +4,6 @@ import com.example.HonBam.filter.JwtAuthFilter;
 import com.example.HonBam.filter.JwtExceptionFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -51,15 +50,27 @@ public class WebSecurityConfig {
                 .and()
                 // 어떤 요청에서 인증을 안 할 것인지, 언제 인증을 할 것인지 설정
                 .authorizeRequests()
+                .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // /api/auth/** 은 permit이지만, /promote는 검증이 필요하기 때문에 추가.(순서 조심!)
                 .antMatchers(HttpMethod.POST, "/api/auth/paypromote")
                 .authenticated()
                 .antMatchers("/api/auth/load-profile").authenticated()
                 .antMatchers("/api/recipe").permitAll()
+                .antMatchers("/api/tosspay/info").authenticated()
+                .antMatchers("/api/tosspay/confirm").authenticated()
+                .antMatchers("/api/tosspay/**").permitAll()
                 // '/api/auth'로 시작하는 요청과 '/'요청은 권한 검사 없이 허용하겠다.
                 .antMatchers("/", "/api/auth/**").permitAll()
                 .antMatchers("/api/freeboard").permitAll()
                 .antMatchers("/api/posts/**").permitAll()
+                .antMatchers("/ws-chat/**").permitAll()
+                .antMatchers("/chat/**").permitAll()
+                .antMatchers("/redis/**").permitAll()
+                .antMatchers("/chatRooms/**").permitAll()
+                .antMatchers("/topic/**").permitAll()
+                .antMatchers("/app/**").permitAll()
+
+
                 // '/api/HonBams'라는 요청이 POST로 들어오고, Role 값이 ADMIN인 경우 권한 검사 없이 허용하겠다.
 //                .antMatchers(HttpMethod.POST, "/api/HonBams").hasRole("ADMIN").permitAll()
                 // 위에서 따로 설정하지 않은 나머지 요청들은 권한 검사가 필요하다.
@@ -88,7 +99,7 @@ public class WebSecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOriginPatterns(Arrays.asList("*"));
-        configuration.setAllowedMethods(Arrays.asList("HEAD","POST","GET","DELETE","PUT"));
+        configuration.setAllowedMethods(Arrays.asList("HEAD","POST","GET","DELETE","PUT", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
 

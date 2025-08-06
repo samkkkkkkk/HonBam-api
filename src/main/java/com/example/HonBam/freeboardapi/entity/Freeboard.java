@@ -53,4 +53,6 @@ public class Freeboard {
     @JsonIgnore
     private List<FreeboardComment> commentList = new ArrayList<>();
 
+
+
 }

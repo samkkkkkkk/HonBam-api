@@ -1,5 +1,9 @@
 .env
 
+*.log
+app.log.*
+honbam_upload/
+
 # dependencies
 /node_modules
 /.pnp
@@ -22,7 +26,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
  
-*.yml
+application.yml
 
 .gradle
 build/

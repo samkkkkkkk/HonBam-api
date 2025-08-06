@@ -2,7 +2,7 @@ package com.example.HonBam.userapi.service;
 
 import com.example.HonBam.auth.TokenProvider;
 import com.example.HonBam.auth.TokenUserInfo;
-import com.example.HonBam.aws.S3Service;
+//import com.example.HonBam.aws.S3Service;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
@@ -14,6 +14,9 @@ import com.example.HonBam.userapi.entity.Role;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.entity.UserPay;
 import com.example.HonBam.userapi.repository.UserRepository;
+import com.example.HonBam.exception.DuplicateEmailException;
+import com.example.HonBam.exception.UserNotFoundException;
+import com.example.HonBam.exception.InvalidPasswordException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +42,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
-    final S3Service s3Service;
+//    final S3Service s3Service;
 
     @Value("${kakao.client_id}")
     private String KAKAO_CLIENT_ID;
@@ -48,16 +51,11 @@ public class UserService {
     @Value("${kakao.client_secret}")
     private String KAKAO_CLIENT_SECRET;
 
-    @Value("${naver.client_id}")
-    private String NAVER_CLIENT_ID;
-    @Value("${naver.redirect_url}")
-    private String NAVER_REDIRECT_URI;
-    @Value("${naver.client_secret}")
-    private String NAVER_CLIENT_SECRET;
 
 
-//    @Value("${upload.path}")
-//    private String uploadRootPath;
+
+    @Value("${upload.path}")
+    private String uploadRootPath;
 
     // 회원 가입 처리
     public UserSignUpResponseDTO create(
@@ -67,9 +65,9 @@ public class UserService {
     ) {
         String email = dto.getEmail();
 
-        if(isDuplicate(email)) {
+        if(isDuplicate(email, "email")) {
             log.warn("이메일이 중복되었습니다. - {}", email);
-            throw new RuntimeException("중복된 이메일 입니다.");
+            throw new DuplicateEmailException("중복된 이메일 입니다.");
         }
 
         // 패스워드 인코딩
@@ -84,8 +82,15 @@ public class UserService {
 
     }
 
-    public boolean isDuplicate(String email) {
-        return userRepository.existsByEmail(email);
+    public boolean isDuplicate(String target, String value) {
+
+        if (target.equals("userId")) {
+            return userRepository.existsByUserId(value);
+        } else if (target.equals("email")) {
+            return userRepository.existsByEmail(value);
+        }
+
+        return false;
     }
 
     // 회원 인증
@@ -94,7 +99,7 @@ public class UserService {
         // 이메일을 통해 회원 정보 조회
         User user = userRepository.findByEmail(dto.getEmail())
                 .orElseThrow(
-                        () -> new RuntimeException("가입된 회원이 아닙니다.")
+                        () -> new UserNotFoundException("가입된 회원이 아닙니다.")
                 );
 
         // 패스워드 검증
@@ -102,7 +107,7 @@ public class UserService {
         String encodedPassword = user.getPassword(); // DB에 저장된 암호화된 비번
 
         if(!passwordEncoder.matches(rawPassword, encodedPassword)) {
-            throw new RuntimeException("비밀번호가 틀렸습니다.");
+            throw new InvalidPasswordException("비밀번호가 틀렸습니다.");
         }
 
         log.info("{}님 로그인 성공!", user.getUserName());
@@ -119,9 +124,9 @@ public class UserService {
     // 프리미엄으로 등급 업
     public LoginResponseDTO promoteToPremium(TokenUserInfo userInfo) {
 
-        User foundUser = userRepository.findById(userInfo.getUserId())
+        User foundUser = userRepository.findById(userInfo.getEmail())
                 .orElseThrow(
-                        () -> new NoRegisteredArgumentsException("회원 조회에 실패했습니다!")
+                        () -> new UserNotFoundException("회원 조회에 실패했습니다!")
                 );
 
         // 일반(COMMON) 회원이 아니라면 예외 발생
@@ -142,9 +147,9 @@ public class UserService {
     // 프리미엄으로 등급 업 ( 결제 )
     public LoginResponseDTO promoteToPayPremium(TokenUserInfo userInfo) {
 
-        User foundUser = userRepository.findById(userInfo.getUserId())
+        User foundUser = userRepository.findById(userInfo.getEmail())
                 .orElseThrow(
-                        () -> new NoRegisteredArgumentsException("회원 조회에 실패했습니다!")
+                        () -> new UserNotFoundException("회원 조회에 실패했습니다!")
                 );
 
         // 일반(COMMON) 회원이 아니라면 예외 발생
@@ -170,31 +175,31 @@ public class UserService {
      */
     public String uploadProfileImage(MultipartFile profileImg) throws IOException {
 
-        // 루트 디렉토리가 실존하는 지 확인 후 존재하지 않으면 생성.
-//        File rootDir = new File(uploadRootPath);
-//        if(!rootDir.exists()) rootDir.mkdirs();
+//         루트 디렉토리가 실존하는 지 확인 후 존재하지 않으면 생성.
+        File rootDir = new File(uploadRootPath);
+        if(!rootDir.exists()) rootDir.mkdirs();
 
         // 파일명을 유니크하게 변경 (이름 충돌 가능성을 대비)
         // UUID와 원본파일명을 혼합. -> 규칙은 없어요.
         String uniqueFileName
                 = UUID.randomUUID() + "_" + profileImg.getOriginalFilename();
 
-        // 파일을 저장
-//        File uploadFile = new File(uploadRootPath + "/" + uniqueFileName);
-//        profileImg.transferTo(uploadFile);
-//
-//        return uniqueFileName;
-        return s3Service.uploadToS3Bucket(profileImg.getBytes(), uniqueFileName);
+//         파일을 저장
+        File uploadFile = new File(uploadRootPath + "/" + uniqueFileName);
+        profileImg.transferTo(uploadFile);
+
+        return uniqueFileName;
+//        return s3Service.uploadToS3Bucket(profileImg.getBytes(), uniqueFileName);
     }
 
-    public String findProfilePath(String userId) {
-        User user = userRepository.findById(userId).orElseThrow();
-        return user.getProfileImg();
-        // DB에 저장되는 profile_img는 파일명. -> service가 가지고 있는 Root Path와 연결해서 리턴.
-//        if(user.getAccessToken() != null){
-//            return user.getProfileImg();
-//        }
-//        return uploadRootPath + "/" + user.getProfileImg();
+    public String findProfilePath(String email) {
+        User user = userRepository.findById(email).orElseThrow();
+//        return user.getProfileImg();
+//         DB에 저장되는 profile_img는 파일명. -> service가 가지고 있는 Root Path와 연결해서 리턴.
+        if(user.getAccessToken() != null){
+            return user.getProfileImg();
+        }
+        return uploadRootPath + "/" + user.getProfileImg();
 
 
     }
@@ -212,13 +217,13 @@ public class UserService {
         // 회원가입 처리 -> 이메일 중복 검사 진행 -> 자체 jwt를 생성해서 토큰을 화면단에 리턴.
         // -> 화면단에서는 적절한 url을 선택하여 redirect를 진행.
 
-        if(!isDuplicate(dto.getKakaoAccount().getEmail())) {
+        if(!isDuplicate(dto.getKakaoAccount().getEmail(), "email")) {
             // 이메일이 중복되지 않았다 -> 이전에 로그인 한 적이 없음 -> DB에 데이터를 세팅
             User saved = userRepository.save(dto.toEntity((String)responseData.get("access_token")));
         }
         // 이메일이 중복됐다? -> 이전에 로그인 한 적이 있다. -> DB에 데이터를 또 넣을 필요는 없다.
         User foundUser = userRepository.findByEmail(dto.getKakaoAccount().getEmail())
-                .orElseThrow();
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
         String token = tokenProvider.createToken(foundUser);
 
@@ -291,8 +296,8 @@ public class UserService {
     }
 
     public String logout(TokenUserInfo userInfo) {
-        User foundUser = userRepository.findById(userInfo.getUserId())
-                .orElseThrow();
+        User foundUser = userRepository.findById(userInfo.getEmail())
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
         String accessToken = foundUser.getAccessToken();
         if(accessToken != null) {
@@ -310,144 +315,13 @@ public class UserService {
 
 
 
-    public LoginResponseDTO NaverService(final String code) {
 
-        String state = "STATE_STRING";
-
-        // 인가코드를 통해 토큰 발급받기
-        Map<String, Object> responseData = getNaverAccessToken(code,state);
-        log.info("responseData: {}", responseData);
-        log.info("token(naver): {}", responseData.get("access_token"));
-
-        // 토큰을 통해 사용자 정보 가져오기
-        NaverUserDTO dto = getNaverUserInfo((String)responseData.get("access_token"));
-
-
-        // 일회성 로그인으로 처리 -> dto를 바로 화면단으로 리턴
-        // 회원가입 처리 -> 이메일 중복 검사 진행 -> 자체 jwt를 생성해서 토큰을 화면단에 리턴.
-        // -> 화면단에서는 적절한 url을 선택하여 redirect를 진행.
-
-        if(!isDuplicate(dto.getEmail())) {
-            // 이메일이 중복되지 않았다 -> 이전에 로그인 한 적이 없음 -> DB에 데이터를 세팅
-            User saved = userRepository.save(dto.toEntity((String)responseData.get("access_token")));
-        }
-        // 이메일이 중복됐다? -> 이전에 로그인 한 적이 있다. -> DB에 데이터를 또 넣을 필요는 없다.
-        User foundUser = userRepository.findByEmail(dto.getEmail())
-                .orElseThrow();
-
-        String token = tokenProvider.createToken(foundUser);
-
-        foundUser.setAccessToken((String)responseData.get("access_token"));
-        userRepository.save(foundUser);
-
-        return new LoginResponseDTO(foundUser, token);
-
-    }
-
-    private NaverUserDTO getNaverUserInfo(String accessToken) {
-
-        // 요청 uri
-        String requestUri = "https://openapi.naver.com/v1/nid/me";
-
-        // 요청 헤더 설정
-        HttpHeaders headers = new HttpHeaders();
-        headers.add("Authorization", "Bearer " + accessToken);
-
-        // 요청 보내기
-        RestTemplate template2 = new RestTemplate();
-        ResponseEntity<Map> responseEntity
-                = template2.exchange(requestUri, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
-
-        // 응답 바디 읽기
-        Map<String, Object> responseData = responseEntity.getBody();
-        log.info("user profile: {}", responseData);
-
-        NaverUserDTO naverUserDTO = new NaverUserDTO();
-        naverUserDTO.setId((Integer) responseData.get("id"));
-        naverUserDTO.setEmail((String) responseData.get("email"));
-        naverUserDTO.setNickname((String)responseData.get("nickname"));
-        naverUserDTO.setProfileImageUrl((String) responseData.get("profile_image"));
-
-        return naverUserDTO;
-    }
-
-    private Map<String, Object> getNaverAccessToken(String code , String state) {
-
-        // 요청 uri
-        String requestUri = "https://nid.naver.com/oauth2.0/token";
-        HttpHeaders headers = new HttpHeaders();
-//        headers.add("Content-type", "application/x-www-form-urlencoded;charset=utf-8");
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        // 요청 바디(파라미터) 설정
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("grant_type", "authorization_code"); // 카카오 공식 문서 기준 값으로 세팅
-        params.add("client_id", NAVER_CLIENT_ID); // 카카오 디벨로퍼 REST API 키
-        params.add("client_secret", NAVER_CLIENT_SECRET); // 카카오 디벨로퍼 client secret(활성화 시 추가해 줘야 함)
-        params.add("code", code); // 프론트에서 인가 코드 요청시 전달받은 코드값
-        params.add("state",state);
-
-        log.info("params: {}", params);
-        // 헤더와 바디 정보를 합치기 위해 HttpEntity 객체 생성
-        HttpEntity<Object> requestEntity = new HttpEntity<>(params, headers);
-        // 카카오 서버로 POST 통신
-        RestTemplate template = new RestTemplate();
-        ResponseEntity<Map> responseEntity = template.postForEntity(requestUri, requestEntity, Map.class);
-//        ResponseEntity<Map> responseEntity
-//                = template.exchange(requestUri, HttpMethod.POST, requestEntity, Map.class);
-
-        // 통신을 보내면서 응답데이터를 리턴
-        // param1: 요청 url
-        // param2: 요청 메서드 (전송 방식)
-        // param3: 헤더와 요청 파라미터정보 엔터티
-        // param4: 응답 데이터를 받을 객체의 타입 (ex: dto, map)
-        // 만약 구조가 복잡한 경우에는 응답 데이터 타입을 String으로 받아서 JSON-simple 라이브러리로 직접 해체.
-//        ResponseEntity<Map> responseEntity
-//                = template.exchange(requestUri, HttpMethod.POST, requestEntity, Map.class);
-        log.info("responseEntity: {}", responseEntity);
-        // 응답 데이터에서 필요한 정보를 가져오기
-        Map<String, Object> responseData = (Map<String, Object>)responseEntity.getBody();
-        log.info("토큰 요청 응답 데이터: {}", responseData);
-
-
-        return responseData;
-    }
-
-    public LoginResponseDTO GoogleService(final String code) {
-
-        // 인가코드를 통해 토큰 발급받기
-        Map<String, Object> responseData = getKakaoAccessToken(code);
-        log.info("token: {}", responseData.get("access_token"));
-
-        // 토큰을 통해 사용자 정보 가져오기
-        KakaoUserDTO dto = getKakaoUserInfo((String)responseData.get("access_token"));
-
-        // 일회성 로그인으로 처리 -> dto를 바로 화면단으로 리턴
-        // 회원가입 처리 -> 이메일 중복 검사 진행 -> 자체 jwt를 생성해서 토큰을 화면단에 리턴.
-        // -> 화면단에서는 적절한 url을 선택하여 redirect를 진행.
-
-        if(!isDuplicate(dto.getKakaoAccount().getEmail())) {
-            // 이메일이 중복되지 않았다 -> 이전에 로그인 한 적이 없음 -> DB에 데이터를 세팅
-            User saved = userRepository.save(dto.toEntity((String)responseData.get("access_token")));
-        }
-        // 이메일이 중복됐다? -> 이전에 로그인 한 적이 있다. -> DB에 데이터를 또 넣을 필요는 없다.
-        User foundUser = userRepository.findByEmail(dto.getKakaoAccount().getEmail())
-                .orElseThrow();
-
-        String token = tokenProvider.createToken(foundUser);
-
-        foundUser.setAccessToken((String)responseData.get("access_token"));
-        userRepository.save(foundUser);
-
-        return new LoginResponseDTO(foundUser, token);
-
-    }
 
     // 사용자 삭제 함수
-    public void delete(String userId) {
+    public void delete(String email) {
         // 데이터베이스에서 사용자 ID를 이용해 사용자를 찾습니다.
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("해당 사용자를 찾을 수 없습니다."));
+        User user = userRepository.findById(email)
+                .orElseThrow(() -> new UserNotFoundException("해당 사용자를 찾을 수 없습니다."));
 
         // 사용자가 존재하면 삭제합니다.
         userRepository.delete(user);

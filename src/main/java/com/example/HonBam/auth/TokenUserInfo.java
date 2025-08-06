@@ -9,12 +9,7 @@ import lombok.*;
 @NoArgsConstructor @AllArgsConstructor
 @Builder
 public class TokenUserInfo {
-
     private String userId;
-    private String email;
     private Role role;
-    private UserPay userPay;
-    private String address;
-    private String phoneNumber;
-
 }
+

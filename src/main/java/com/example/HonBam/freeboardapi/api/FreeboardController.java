@@ -1,7 +1,8 @@
 package com.example.HonBam.freeboardapi.api;
 
+import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.auth.TokenUserInfo;
-import com.example.HonBam.freeboardapi.Service.FreeboardService;
+import com.example.HonBam.freeboardapi.service.FreeboardService;
 import com.example.HonBam.freeboardapi.dto.request.CommentModifyRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardCommentRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardRequestDTO;
@@ -28,12 +29,13 @@ public class FreeboardController {
     // 게시글 등록 요청
     @PostMapping
     public ResponseEntity<?> createContent(
-            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody FreeboardRequestDTO requestDTO
     ) {
 
+
         FreeboardResponseDTO responseDTO =
-                freeboardService.createContent(requestDTO, userInfo);
+                freeboardService.createContent(requestDTO, userDetails);
 
         return ResponseEntity.ok().body(responseDTO);
 
@@ -42,10 +44,10 @@ public class FreeboardController {
     // 게시글 목록 조회
     @GetMapping
     public ResponseEntity<?> contentList(
-            @AuthenticationPrincipal TokenUserInfo userInfo
+            @AuthenticationPrincipal CustomUserDetails userDetails
         ) {
-        log.info("유저=={}", userInfo);
-        if(userInfo == null) {
+        log.info("유저=={}", userDetails);
+        if(userDetails == null) {
             return ResponseEntity.badRequest().body("목록을 불러오지 못했습니다.");
         }
         FreeboardResponseDTO responseDTO = freeboardService.retrieve();
@@ -56,16 +58,14 @@ public class FreeboardController {
     // 게시글 삭제 요청
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteContent(
-            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable("id") Long id
     ){
-        if(id == null || Long.toString(id).isEmpty()){
-            ResponseEntity.badRequest()
-                    .body("에러");
+        if (id == null) {
+            return ResponseEntity.badRequest().body("에러");
         }
-
         try{
-            FreeboardResponseDTO responseDTO = freeboardService.delete(userInfo.getUserId(), id);
+            FreeboardResponseDTO responseDTO = freeboardService.delete(userDetails.getUser().getId(), id);
             return ResponseEntity.ok().body(responseDTO);
         } catch (Exception e){
             return ResponseEntity
@@ -77,11 +77,11 @@ public class FreeboardController {
     // 게시글 수정하기
     @PutMapping("/{id}")
     public ResponseEntity<?> modifyContent(
-            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable("id") Long id,
             @RequestBody FreeboardRequestDTO RequestDTO
     ) {
-        FreeboardDetailResponseDTO modifyContent = freeboardService.modify(userInfo, id, RequestDTO);
+        FreeboardDetailResponseDTO modifyContent = freeboardService.modify(userDetails.getUser(), id, RequestDTO);
         return ResponseEntity.ok().body(modifyContent);
 
     }
@@ -89,7 +89,7 @@ public class FreeboardController {
     // 게시글 상세보기
     @GetMapping("/detail/{id}")
     public ResponseEntity<?> detailContent(
-            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable("id") Long id
     ){
 
@@ -102,17 +102,17 @@ public class FreeboardController {
     // 댓글 등록
     @PostMapping("/comment")
     public ResponseEntity<List<FreeboardComment>> createComment(
-            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody FreeboardCommentRequestDTO dto
     ){
 
-        return ResponseEntity.ok().body(freeboardService.commentRegist(dto, userInfo));
+        return ResponseEntity.ok().body(freeboardService.commentRegist(dto, userDetails.getUser()));
     }
 
     // 댓글 목록 요청
     @GetMapping("/comment")
     public ResponseEntity<?> commentLis (
-            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam Long id
     ){
 
@@ -123,21 +123,21 @@ public class FreeboardController {
     // 댓글 삭제 요청
     @DeleteMapping("/comment/{commentId}")
     public ResponseEntity<?> deleteComment(
-            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable() Long commentId
     ) {
 
-        return ResponseEntity.ok().body(freeboardService.commentDelete(userInfo, commentId));
+        return ResponseEntity.ok().body(freeboardService.commentDelete(userDetails.getUser(), commentId));
 
     }
 
     // 댓글 수정
     @PutMapping("/comment")
     public ResponseEntity<?> modifyComment(
-            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody CommentModifyRequestDTO requestDTO
     ){
-        if(!freeboardService.validateWriter(userInfo, requestDTO.getId())){
+        if(!freeboardService.validateWriter(userDetails.getUser(), requestDTO.getId())){
             return ResponseEntity.badRequest().body("fail");
         }
         return ResponseEntity.ok().body(freeboardService.modify(requestDTO));

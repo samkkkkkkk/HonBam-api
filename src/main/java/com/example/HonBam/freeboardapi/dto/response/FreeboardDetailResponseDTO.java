@@ -16,18 +16,17 @@ public class FreeboardDetailResponseDTO {
     private String title;
     private String content;
     private String userName;
-    private String userId;
+    private String email;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime date;
-
 
     public FreeboardDetailResponseDTO(Freeboard freeboard) {
         this.id = freeboard.getId();
         this.title = freeboard.getTitle();
         this.content = freeboard.getContent();
         this.userName = freeboard.getUser().getUserName();
-        this.userId = freeboard.getUser().getUserId();
+        this.email = freeboard.getUser().getEmail();
         if(freeboard.getUpdateDate() != null){
             this.date = freeboard.getUpdateDate();
         }else {

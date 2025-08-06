@@ -16,7 +16,7 @@ public class FreeboardCommentRequestDTO {
 
     public FreeboardComment toEntity(User user, Freeboard freeboard) {
         return FreeboardComment.builder()
-                .writer(user.getUserName())
+                .writer(user.getNickName())
                 .comment(this.comment)
                 .freeboard(freeboard)
                 .userId(user.getUserId())

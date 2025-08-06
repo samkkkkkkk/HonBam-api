@@ -35,14 +35,16 @@ public class UserController {
     // 이메일 중복 확인 요청 처리
     // GET: /api/auth/check?email=zzzz@xxx.com
     @GetMapping("/check")
-    public ResponseEntity<?> check(String email) {
-        if(email.trim().isEmpty()) {
+    public ResponseEntity<?> check(@RequestParam(value = "value") String value,
+                                   @RequestParam(value = "target") String target
+    ) {
+        if(target.trim().isEmpty()) {
             return ResponseEntity.badRequest()
                     .body("이메일이 없습니다!");
         }
 
-        boolean resultFlag = userService.isDuplicate(email);
-        log.info("{} 중복?? - {}", email, resultFlag);
+        boolean resultFlag = userService.isDuplicate(target, value);
+        log.info("{} 중복?? - {}", target, resultFlag);
 
         return ResponseEntity.ok().body(resultFlag);
     }
@@ -109,7 +111,7 @@ public class UserController {
     // 메서드 호출 전에 권한 검사 -> 요청 당시 토큰에 있는 user 정보가 ROLE_COMMON이라는 권한을 가지고 있는지 검사.
     @PreAuthorize("hasRole('ROLE_COMMON')")
     public ResponseEntity<?> promote(
-            @AuthenticationPrincipal TokenUserInfo userInfo
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         log.info("/api/auth/promote PUT!");
 
@@ -133,12 +135,12 @@ public class UserController {
 
 
     // 일반 회원을 프리미엄 회원으로 승격하는 요청 처리
-    @PostMapping("/paypromote")
+    @PutMapping("/paypromote")
     // 권한 검사 (해당 권한이 아니라면 인가처리 거부 -> 403 코드 리턴)
     // 메서드 호출 전에 권한 검사 -> 요청 당시 토큰에 있는 user 정보가 ROLE_COMMON이라는 권한을 가지고 있는지 검사.
     @PreAuthorize("hasRole('ROLE_NORMAL')")
     public ResponseEntity<?> paypromote(
-            @AuthenticationPrincipal TokenUserInfo userInfo
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         log.info("/api/auth/paypromote PUT!");
 
@@ -163,7 +165,7 @@ public class UserController {
     // 프로필 사진 이미지 데이터를 클라이언트에게 응답 처리
     @GetMapping("/load-profile")
     public ResponseEntity<?> loadFile(
-            @AuthenticationPrincipal TokenUserInfo userInfo
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         log.info("/api/auth/load-profile - GET!, user: {}", userInfo.getEmail());
 
@@ -171,7 +173,7 @@ public class UserController {
             // 클라이언트가 요청한 프로필 사진을 응답해야 함.
             // 1. 프로필 사진의 경로부터 얻어야 한다!
             String filePath
-                    = userService.findProfilePath(userInfo.getUserId());
+                    = userService.findProfilePath(userInfo.getEmail());
 
             // 2. 얻어낸 파일 경로를 통해 실제 파일 데이터를 로드하기.
             File profileFile = new File(filePath);
@@ -236,26 +238,12 @@ public class UserController {
         return ResponseEntity.ok().body(responseDTO);
     }
 
-    @GetMapping("/naverLogin")
-    public ResponseEntity<?> naverLogin(@RequestParam("code") String code) {
-        log.info("/api/auth/naverLogin - GET! -code: {}", code);
-        LoginResponseDTO responseDTO = userService.NaverService(code);
 
-        return ResponseEntity.ok().body(responseDTO);
-    }
-
-    @GetMapping("/googleLogin")
-    public ResponseEntity<?> googleLogin(@RequestParam("code") String code) {
-        log.info("/api/auth/naverLogin - GET! -code: {}", code);
-        LoginResponseDTO responseDTO = userService.GoogleService(code);
-
-        return ResponseEntity.ok().body(responseDTO);
-    }
 
     // 로그아웃 처리
     @GetMapping("/logout")
     public ResponseEntity<?> logout(
-            @AuthenticationPrincipal TokenUserInfo userInfo
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         log.info("/api/auth/logout - GET! - user: {}", userInfo.getEmail());
 
@@ -267,15 +255,15 @@ public class UserController {
     // 회원 탈퇴 요청 처리
 // DELETE: /api/auth
     @DeleteMapping("/delete")
-    public ResponseEntity<?> deleteUser(@AuthenticationPrincipal TokenUserInfo userInfo) {
+    public ResponseEntity<?> deleteUser(@AuthenticationPrincipal CustomUserDetails userDetails) {
         log.info("/api/auth DELETE! - user: {}", userInfo.getEmail());
 
         try {
             // TokenUserInfo에서 userId를 추출합니다.
-            String userId = userInfo.getUserId();
+            String email = userInfo.getEmail();
 
             // userId를 이용하여 해당 사용자를 삭제합니다.
-            userService.delete(userId);
+            userService.delete(email);
 
             return ResponseEntity.ok().body("회원 탈퇴가 정상적으로 처리되었습니다. " + userInfo.getEmail() + "님, 서비스를 이용해 주셔서 감사합니다.");
         } catch (Exception e) {
@@ -288,10 +276,10 @@ public class UserController {
     // s3에서 불러온 프로필 사진 처리
     @GetMapping("/profile-s3")
     public ResponseEntity<?> s3Profile(
-            @AuthenticationPrincipal TokenUserInfo userInfo
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ){
         try {
-            String profilePath = userService.findProfilePath(userInfo.getUserId());
+            String profilePath = userService.findProfilePath(userInfo.getEmail());
             return ResponseEntity.ok().body(profilePath);
         } catch (Exception e) {
             e.printStackTrace();

@@ -1,0 +1,94 @@
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Seoul
+      LANG: C.UTF-8
+      command: >
+        --character-set-server=utf8mb4
+        --collation-server=utf8mb4_general_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  rabbitmq:
+    image: rabbitmq:3.13.0-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+      - "61613:61613"  # STOMP
+      - "61614:61614"  # STOMP over TLS(옵션)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    command: >
+      bash -c "rabbitmq-plugins enable --offline rabbitmq_stomp rabbitmq_web_stomp &&
+               rabbitmq-server"
+    networks:
+      - app-network
+
+  springboot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ~/.gradle:/home/gradle/.gradle
+      - ./honbam_upload:/honbam_upload # 호스트의 폴더를 컨테이너 /upload로 연결
+    container_name: springboot
+    ports:
+      - "8181:8181"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    networks:
+      - app-network
+    environment:
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - PAYMENT_TOSS_TEST_CLIENT_API_KEY=${PAYMENT_TOSS_TEST_CLIENT_API_KEY}
+      - PAYMENT_TOSS_TEST_CLIENT_API_KEY_SECRET=${PAYMENT_TOSS_TEST_CLIENT_API_KEY_SECRET}
+#      - PAYMENT_TOSS_SUCCESS_URL=${PAYMENT_TOSS_SUCCESS_URL}
+#      - PAYMENT_TOSS_FAIL_URL=${PAYMENT_TOSS_FAIL_URL}
+      - KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
+      - KAKAO_REDIRECT_URL=${KAKAO_REDIRECT_URL}
+      - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
+
+
+volumes:
+  mysql-data:
+
+networks:
+  app-network:
+    driver: bridge
+
+

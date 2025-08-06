@@ -54,28 +54,14 @@ public class TokenProvider {
             }
          */
 
-        // 추가 클레임 정의
-        Map<String, String> claims = new HashMap<>();
-        claims.put("userId",userEntity.getUserId());
-        claims.put("role", userEntity.getRole().toString());
-        claims.put("userPay",userEntity.getUserPay().toString());
-        claims.put("address",userEntity.getAccessToken());
-        claims.put("phoneNumber",userEntity.getPhoneNumber());
-
-        log.info("user {}", userEntity);
-
         return Jwts.builder()
-                // token header에 들어갈 서명
-                .signWith(
-                        Keys.hmacShaKeyFor(SECRET_KEY.getBytes()),
-                        SignatureAlgorithm.HS512
-                )
-                // token payload에 들어갈 클레임 설정.
-                .setClaims(claims) // 추가 클레임은 먼저 설정해야 함.
+//
+                .setSubject(userEntity.getId())   // sub 필드에 식별자
+                .claim("role", userEntity.getRole().toString())
                 .setIssuer("HonBam운영자") // iss: 발급자 정보
                 .setIssuedAt(new Date()) // iat: 발급 시간
                 .setExpiration(expiry) // exp: 만료 시간
-                .setSubject(userEntity.getUserId()) // sub: 토큰을 식별할 수 있는 주요 데이터
+                .signWith(Keys.hmacShaKeyFor(SECRET_KEY.getBytes()), SignatureAlgorithm.HS512)
                 .compact();
     }
 
@@ -98,16 +84,10 @@ public class TokenProvider {
         log.info("claims: {}", claims);
 
         return TokenUserInfo.builder()
-                .userId(claims.get("userId",String.class))
+                .userId(claims.getSubject())
                 .role(Role.valueOf(claims.get("role", String.class)))
-                .userPay(UserPay.valueOf(claims.get("userPay",String.class)))
-                .address(claims.get("address",String.class))
-                .phoneNumber(claims.get("phoneNumber",String.class))
-
                 .build();
     }
-
-
 }
 
 

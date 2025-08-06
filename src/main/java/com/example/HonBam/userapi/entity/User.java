@@ -1,11 +1,14 @@
 package com.example.HonBam.userapi.entity;
 
+import com.example.HonBam.chatapi.entity.ChatRoomUser;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @ToString
@@ -19,14 +22,15 @@ import java.time.LocalDateTime;
 public class User {
 
     @Id
-//    @Column(name = "user_id")
+    @Column(name = "id")
     @GeneratedValue(generator = "system-uuid")
     @GenericGenerator(name = "system-uuid", strategy = "uuid")
-    private String userId; // 계정명이 아니라 식별 코드
+    private String id; // 계정명이 아니라 식별 코드
 
     @Column(nullable = false, unique = true)
     private String email;
 
+    private String nickName;
 
     private String phoneNumber;
 
@@ -37,6 +41,9 @@ public class User {
     private String userName;
 
     private String address;
+
+    @Setter
+    private SubscriptionStatus subscriptionStatus = SubscriptionStatus.EXPIRED;
 
     @CreationTimestamp
     private LocalDateTime joinDate;
@@ -49,14 +56,15 @@ public class User {
     @Enumerated(EnumType.STRING)
     //    @ColumnDefault("'COMMON'")
     @Builder.Default
+    @Setter
     private UserPay userPay = UserPay.NORMAL;
 
     private String profileImg; // 프로필 이미지 경로
 
     private String accessToken; // 카카오 로그인시 발급받는 accessToken을 저장 -> 로그아웃 때 필요
 
-
-
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<ChatRoomUser> chatRoomUsers = new ArrayList<>();
 
 
     // 등급 수정 메서드
@@ -71,6 +79,7 @@ public class User {
     public void setAccessToken(String accessToken){
         this.accessToken = accessToken;
     }
+
 }
 
 
