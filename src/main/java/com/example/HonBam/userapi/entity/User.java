@@ -12,7 +12,7 @@ import java.util.List;
 
 @Getter
 @ToString
-@EqualsAndHashCode(of = "userId")
+@EqualsAndHashCode(of = "id")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

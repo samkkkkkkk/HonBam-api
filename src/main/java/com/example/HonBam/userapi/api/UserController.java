@@ -1,5 +1,6 @@
 package com.example.HonBam.userapi.api;
 
+import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
@@ -116,7 +117,7 @@ public class UserController {
         log.info("/api/auth/promote PUT!");
 
         try {
-            LoginResponseDTO responseDTO = userService.promoteToPremium(userInfo);
+            LoginResponseDTO responseDTO = userService.promoteToPremium(userDetails);
             return ResponseEntity.ok()
                     .body(responseDTO);
         } catch (NoRegisteredArgumentsException | IllegalArgumentException e) {
@@ -145,7 +146,7 @@ public class UserController {
         log.info("/api/auth/paypromote PUT!");
 
         try {
-            LoginResponseDTO responseDTO = userService.promoteToPayPremium(userInfo);
+            LoginResponseDTO responseDTO = userService.promoteToPayPremium(userDetails);
             return ResponseEntity.ok()
                     .body(responseDTO);
         } catch (NoRegisteredArgumentsException | IllegalArgumentException e) {
@@ -167,13 +168,13 @@ public class UserController {
     public ResponseEntity<?> loadFile(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        log.info("/api/auth/load-profile - GET!, user: {}", userInfo.getEmail());
+        log.info("/api/auth/load-profile - GET!, user: {}", userDetails.getUser().getEmail());
 
         try {
             // 클라이언트가 요청한 프로필 사진을 응답해야 함.
             // 1. 프로필 사진의 경로부터 얻어야 한다!
             String filePath
-                    = userService.findProfilePath(userInfo.getEmail());
+                    = userService.findProfilePath(userDetails.getUser().getId());
 
             // 2. 얻어낸 파일 경로를 통해 실제 파일 데이터를 로드하기.
             File profileFile = new File(filePath);
@@ -245,9 +246,9 @@ public class UserController {
     public ResponseEntity<?> logout(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        log.info("/api/auth/logout - GET! - user: {}", userInfo.getEmail());
+        log.info("/api/auth/logout - GET! - user: {}", userDetails.getUser().getEmail());
 
-        String result = userService.logout(userInfo);
+        String result = userService.logout(userDetails);
         return ResponseEntity.ok().body(result);
     }
 
@@ -256,20 +257,19 @@ public class UserController {
 // DELETE: /api/auth
     @DeleteMapping("/delete")
     public ResponseEntity<?> deleteUser(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        log.info("/api/auth DELETE! - user: {}", userInfo.getEmail());
+        log.info("/api/auth DELETE! - user: {}", userDetails.getUser().getEmail());
 
         try {
-            // TokenUserInfo에서 userId를 추출합니다.
-            String email = userInfo.getEmail();
+            String userId = userDetails.getUser().getId();
 
             // userId를 이용하여 해당 사용자를 삭제합니다.
-            userService.delete(email);
+            userService.delete(userId);
 
-            return ResponseEntity.ok().body("회원 탈퇴가 정상적으로 처리되었습니다. " + userInfo.getEmail() + "님, 서비스를 이용해 주셔서 감사합니다.");
+            return ResponseEntity.ok().body("회원 탈퇴가 정상적으로 처리되었습니다. " + userDetails.getUser().getEmail() + "님, 서비스를 이용해 주셔서 감사합니다.");
         } catch (Exception e) {
-            log.warn(userInfo.getEmail() + "님의 회원 탈퇴 처리 중 에러가 발생했습니다!");
+            log.warn(userDetails.getUser().getEmail() + "님의 회원 탈퇴 처리 중 에러가 발생했습니다!");
             e.printStackTrace();
-            return ResponseEntity.internalServerError().body(userInfo.getEmail() + "님의 회원 탈퇴 처리 중 문제가 발생했습니다. 다시 시도해 주세요.");
+            return ResponseEntity.internalServerError().body(userDetails.getUser().getEmail() + "님의 회원 탈퇴 처리 중 문제가 발생했습니다. 다시 시도해 주세요.");
         }
     }
 
@@ -279,7 +279,7 @@ public class UserController {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ){
         try {
-            String profilePath = userService.findProfilePath(userInfo.getEmail());
+            String profilePath = userService.findProfilePath(userDetails.getUser().getId());
             return ResponseEntity.ok().body(profilePath);
         } catch (Exception e) {
             e.printStackTrace();

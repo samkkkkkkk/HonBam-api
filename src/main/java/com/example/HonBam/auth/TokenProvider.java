@@ -55,7 +55,6 @@ public class TokenProvider {
          */
 
         return Jwts.builder()
-//
                 .setSubject(userEntity.getId())   // sub 필드에 식별자
                 .claim("role", userEntity.getRole().toString())
                 .setIssuer("HonBam운영자") // iss: 발급자 정보

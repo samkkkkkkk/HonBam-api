@@ -15,6 +15,10 @@ public class CustomUserDetails implements UserDetails {
         this.user = user;
     }
 
+    public User getUser() {
+        return user;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singleton(user.getRole()::name);
@@ -50,7 +54,4 @@ public class CustomUserDetails implements UserDetails {
         return true;
     }
 
-    public User getUser() {
-        return user;
-    }
 }

@@ -1,14 +1,12 @@
 package com.example.HonBam.userapi.service;
 
+import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.auth.TokenProvider;
-import com.example.HonBam.auth.TokenUserInfo;
 //import com.example.HonBam.aws.S3Service;
-import com.example.HonBam.exception.NoRegisteredArgumentsException;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
 import com.example.HonBam.userapi.dto.response.KakaoUserDTO;
 import com.example.HonBam.userapi.dto.response.LoginResponseDTO;
-import com.example.HonBam.userapi.dto.response.NaverUserDTO;
 import com.example.HonBam.userapi.dto.response.UserSignUpResponseDTO;
 import com.example.HonBam.userapi.entity.Role;
 import com.example.HonBam.userapi.entity.User;
@@ -21,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -122,9 +119,9 @@ public class UserService {
 
 
     // 프리미엄으로 등급 업
-    public LoginResponseDTO promoteToPremium(TokenUserInfo userInfo) {
+    public LoginResponseDTO promoteToPremium(CustomUserDetails userDetails) {
 
-        User foundUser = userRepository.findById(userInfo.getEmail())
+        User foundUser = userRepository.findById(userDetails.getUser().getId())
                 .orElseThrow(
                         () -> new UserNotFoundException("회원 조회에 실패했습니다!")
                 );
@@ -145,9 +142,9 @@ public class UserService {
     }
 
     // 프리미엄으로 등급 업 ( 결제 )
-    public LoginResponseDTO promoteToPayPremium(TokenUserInfo userInfo) {
+    public LoginResponseDTO promoteToPayPremium(CustomUserDetails userDetails) {
 
-        User foundUser = userRepository.findById(userInfo.getEmail())
+        User foundUser = userRepository.findById(userDetails.getUser().getId())
                 .orElseThrow(
                         () -> new UserNotFoundException("회원 조회에 실패했습니다!")
                 );
@@ -192,8 +189,8 @@ public class UserService {
 //        return s3Service.uploadToS3Bucket(profileImg.getBytes(), uniqueFileName);
     }
 
-    public String findProfilePath(String email) {
-        User user = userRepository.findById(email).orElseThrow();
+    public String findProfilePath(String userId) {
+        User user = userRepository.findById(userId).orElseThrow();
 //        return user.getProfileImg();
 //         DB에 저장되는 profile_img는 파일명. -> service가 가지고 있는 Root Path와 연결해서 리턴.
         if(user.getAccessToken() != null){
@@ -295,8 +292,8 @@ public class UserService {
         return responseData;
     }
 
-    public String logout(TokenUserInfo userInfo) {
-        User foundUser = userRepository.findById(userInfo.getEmail())
+    public String logout(CustomUserDetails userDetails) {
+        User foundUser = userRepository.findById(userDetails.getUser().getId())
                 .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
         String accessToken = foundUser.getAccessToken();
@@ -318,9 +315,9 @@ public class UserService {
 
 
     // 사용자 삭제 함수
-    public void delete(String email) {
+    public void delete(String userId) {
         // 데이터베이스에서 사용자 ID를 이용해 사용자를 찾습니다.
-        User user = userRepository.findById(email)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("해당 사용자를 찾을 수 없습니다."));
 
         // 사용자가 존재하면 삭제합니다.
