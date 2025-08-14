@@ -1,17 +1,22 @@
 package com.example.HonBam.userapi.api;
 
 import com.example.HonBam.auth.CustomUserDetails;
+import com.example.HonBam.auth.TokenProvider;
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
+import com.example.HonBam.paymentsapi.util.CookieUtil;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
 import com.example.HonBam.userapi.dto.response.LoginResponseDTO;
+import com.example.HonBam.userapi.dto.response.UserInfoResponseDTO;
 import com.example.HonBam.userapi.dto.response.UserSignUpResponseDTO;
+import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,17 +26,22 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.Map;
 
 @RestController
 @Slf4j
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
-
 public class UserController {
 
     private final UserService userService;
+    private final TokenProvider tokenProvider;
+    private final CookieUtil cookieUtil; // @Component 등록된 경우 주입
+
 
     // 이메일 중복 확인 요청 처리
     // GET: /api/auth/check?email=zzzz@xxx.com
@@ -39,7 +49,7 @@ public class UserController {
     public ResponseEntity<?> check(@RequestParam(value = "value") String value,
                                    @RequestParam(value = "target") String target
     ) {
-        if(target.trim().isEmpty()) {
+        if (target.trim().isEmpty()) {
             return ResponseEntity.badRequest()
                     .body("이메일이 없습니다!");
         }
@@ -61,7 +71,7 @@ public class UserController {
         log.info("/api/auth POST! - {}", dto);
 
 
-        if(result.hasErrors()) {
+        if (result.hasErrors()) {
             log.warn(result.toString());
             return ResponseEntity.badRequest()
                     .body(result.getFieldError());
@@ -69,7 +79,7 @@ public class UserController {
 
         try {
             String uploadedFilePath = null;
-            if(profileImg != null) {
+            if (profileImg != null) {
                 log.info("attached file name: {}", profileImg.getOriginalFilename());
                 // 전달받은 프로필 이미지를 먼저 지정된 경로에 저장한 후 DB 저장을 위해 경로를 받아오자.
                 uploadedFilePath = userService.uploadProfileImage(profileImg);
@@ -89,21 +99,18 @@ public class UserController {
     }
 
     // 로그인 요청 처리
-    @PostMapping("/signin")
-    public ResponseEntity<?> signIn(
-            @Validated @RequestBody LoginRequestDTO dto
-    ) {
-        try {
-            LoginResponseDTO responseDTO
-                    = userService.authenticate(dto);
+    @PostMapping("/login")
+    public ResponseEntity<?> signIn(@Validated @RequestBody LoginRequestDTO dto) {
+        User user = userService.authenticate(dto);
 
-            return ResponseEntity.ok().body(responseDTO);
+        String access = tokenProvider.createAccessToken(user);
+        String refresh = tokenProvider.createRefreshToken(user);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest()
-                    .body(e.getMessage());
-        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookieUtil.createHttpOnly("access_token", access, Duration.ofMinutes(15)).toString())
+                .header(HttpHeaders.SET_COOKIE, cookieUtil.createHttpOnly("refresh_token", refresh, Duration.ofDays(14)).toString())
+                // 4) 응답 바디: 필요한 최소 정보만
+                .body(new LoginResponseDTO(user));
     }
 
     // 일반 회원을 프리미엄 회원으로 승격하는 요청 처리
@@ -181,8 +188,8 @@ public class UserController {
 
             // 모든 사용자가 프로필 사진을 가지는 것은 아니다. -> 프사가 없는 사람들은 경로가 존재하지 않을 것이다.
             // 만약 존재하지 않는 경로라면 클라이언트로 404 status를 리턴.
-            if(!profileFile.exists()) {
-                if(filePath.startsWith("http://")) {
+            if (!profileFile.exists()) {
+                if (filePath.startsWith("http://")) {
                     return ResponseEntity.ok().body(filePath);
                 }
                 return ResponseEntity.notFound().build();
@@ -194,7 +201,7 @@ public class UserController {
             // 3. 응답 헤더에 컨텐츠 타입을 설정.
             HttpHeaders headers = new HttpHeaders();
             MediaType contentType = findExtensionAndGetMediaType(filePath);
-            if(contentType == null) {
+            if (contentType == null) {
                 return ResponseEntity.internalServerError()
                         .body("발견된 파일은 이미지 파일이 아닙니다.");
             }
@@ -220,7 +227,8 @@ public class UserController {
 
         // 추출한 확장자를 바탕으로 MediaType을 설정. -> Header에 들어갈 Content-type이 됨.
         switch (ext.toUpperCase()) {
-            case "JPG": case "JPEG":
+            case "JPG":
+            case "JPEG":
                 return MediaType.IMAGE_JPEG;
             case "PNG":
                 return MediaType.IMAGE_PNG;
@@ -240,16 +248,16 @@ public class UserController {
     }
 
 
-
     // 로그아웃 처리
     @GetMapping("/logout")
     public ResponseEntity<?> logout(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        log.info("/api/auth/logout - GET! - user: {}", userDetails.getUser().getEmail());
-
-        String result = userService.logout(userDetails);
-        return ResponseEntity.ok().body(result);
+        if (userDetails != null) userService.logout(userDetails); // 서버 저장형 refresh 무효화(Optional)
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, cookieUtil.delete("access_token").toString())
+                .header(HttpHeaders.SET_COOKIE, cookieUtil.delete("refresh_token").toString())
+                .build();
     }
 
 
@@ -277,7 +285,7 @@ public class UserController {
     @GetMapping("/profile-s3")
     public ResponseEntity<?> s3Profile(
             @AuthenticationPrincipal CustomUserDetails userDetails
-    ){
+    ) {
         try {
             String profilePath = userService.findProfilePath(userDetails.getUser().getId());
             return ResponseEntity.ok().body(profilePath);
@@ -287,4 +295,28 @@ public class UserController {
         }
     }
 
+    @GetMapping("/userinfo")
+    public ResponseEntity<?> userInfo(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        UserInfoResponseDTO userInfo = userService.getUserInfo(userDetails);
+        return ResponseEntity.ok().body(userInfo);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(HttpServletRequest req) {
+        String r = extractCookie(req,"refresh_token");
+        if (r == null || !tokenProvider.validateRefreshToken(r)) return ResponseEntity.status(401).build();
+
+        var info = tokenProvider.parseRefreshToken(r);
+        String newAccess = tokenProvider.createAccessTokenByInfo(info);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookieUtil.createHttpOnly("access_token", newAccess, Duration.ofMinutes(15)).toString())
+                .build();
+    }
+
+    private String extractCookie(HttpServletRequest req, String name) {
+        var cs = req.getCookies(); if (cs == null) return null;
+        for (var c : cs) if (name.equals(c.getName())) return c.getValue();
+        return null;
+    }
 }

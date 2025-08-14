@@ -1,5 +1,6 @@
 package com.example.HonBam.paymentsapi.api;
 
+import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.config.TossPaymentsConfig;
 import com.example.HonBam.paymentsapi.dto.request.PaymentConfirmReqDTO;
@@ -48,7 +49,7 @@ public class WidgetController {
     public ResponseEntity<?> paymentInfo(@AuthenticationPrincipal CustomUserDetails userDetails,
                                          @RequestBody PaymentInfoRequestDTO requestDTO) {
         log.info("/api/tosspay/info 요청이 들어옴");
-        tossService.savePaymentInfo(requestDTO, userInfo);
+        tossService.savePaymentInfo(requestDTO, userDetails);
         return ResponseEntity.ok().body("ok");
     }
 
@@ -57,7 +58,7 @@ public class WidgetController {
     public @ResponseBody ResponseEntity<?> confirmPayment(@RequestBody PaymentConfirmReqDTO requestDTO,
                                                 @AuthenticationPrincipal CustomUserDetails userDetails ) {
         try {
-           TossPaymentResponseDTO confirmDTO = tossService.confirm(requestDTO, userInfo);
+           TossPaymentResponseDTO confirmDTO = tossService.confirm(requestDTO, userDetails);
             return ResponseEntity.ok().body(confirmDTO);
         } catch (JsonProcessingException e) {
             return ResponseEntity.internalServerError().body(e.getMessage());
@@ -136,7 +137,7 @@ public class WidgetController {
         log.info("/cancel 요청이 들어옴");
         TossPaymentResponseDTO responseDTO = null;
         try {
-            responseDTO = tossService.cancel(userInfo, reqDTO);
+            responseDTO = tossService.cancel(userDetails, reqDTO);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

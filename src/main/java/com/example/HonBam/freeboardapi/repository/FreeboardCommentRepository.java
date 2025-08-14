@@ -10,10 +10,10 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface FreeboardCommentRepository extends JpaRepository<FreeboardComment, Long> {
-    @Query("select c.id, c.comment, c.createTime, c.nickName, u.nickname from FreeboardComment c join c.user u where c.postId = :postId")
-    List<FreeboardCommentResponseDTO> findCommentsWithNicknameByPostId(Long postId);
+    @Query("select c.id, c.comment, c.createTime, c.writer, u.nickname from FreeboardComment c join c.user u where c.freeboard.id = :postId")
+    List<FreeboardCommentResponseDTO> findCommentsWithWriterByPostId(Long postId);
 
-    @Query("select (count(c) > 0 from FreeboardComment c where c.id = :commentId and c.user.id = :userId")
+    @Query("select count(c) > 0 from FreeboardComment c where c.id = :commentId and c.user.id = :userId")
     boolean isCommentOwner(@Param("commentId") Long commentId, @Param("userId") String userId);
 
     @Modifying

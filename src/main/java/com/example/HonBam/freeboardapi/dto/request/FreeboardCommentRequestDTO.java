@@ -16,10 +16,10 @@ public class FreeboardCommentRequestDTO {
 
     public FreeboardComment toEntity(User user, Freeboard freeboard) {
         return FreeboardComment.builder()
-                .writer(user.getNickName())
+                .writer(user.getNickname())
                 .comment(this.comment)
                 .freeboard(freeboard)
-                .userId(user.getUserId())
+                .user(user)
                 .build();
     }
 }

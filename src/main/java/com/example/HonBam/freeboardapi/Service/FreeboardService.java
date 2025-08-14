@@ -56,7 +56,7 @@ public class FreeboardService {
     }
 
     private List<FreeboardCommentResponseDTO> commentDtoByPost(Long postId) {
-        return freeboardCommentRepository.findCommentsWithNicknameByPostId(postId);
+        return freeboardCommentRepository.findCommentsWithWriterByPostId(postId);
     }
 
     private void ensurePostOwner(Long postId, String userId) {

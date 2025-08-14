@@ -94,12 +94,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         String token = authorizationHeader.substring(7);
                         try {
                             TokenUserInfo userInfo = tokenProvider.validateAndGetTokenUserInfo(token);
-                            log.info("STOMP User Authenticated: {}", userInfo.getEmail());
+                            log.info("STOMP User Authenticated: {}", userInfo.getUserId());
                             // Spring Security Authentication 객체 생성
                             // 여기서 authorities는 필요에 따라 설정
                             // Principal.getName()이 userId를 반환하도록 userInfo.getUserId()를 principal로 사용
                             UsernamePasswordAuthenticationToken authentication =
-                                    new UsernamePasswordAuthenticationToken(userInfo.getEmail(), null, /* authorities */ null);
+                                    new UsernamePasswordAuthenticationToken(userInfo.getUserId(), null, /* authorities */ null);
                             accessor.setUser(authentication);
                         } catch (Exception e) {
                             // 토큰 검증 실패 처리

@@ -1,6 +1,6 @@
 package com.example.HonBam.paymentsapi.service;
 
-import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.config.TossPaymentsConfig;
 import com.example.HonBam.paymentsapi.dto.request.PaymentConfirmReqDTO;
 import com.example.HonBam.paymentsapi.dto.request.PaymentInfoRequestDTO;
@@ -48,7 +48,7 @@ public class TossService {
 
 
     // 승인 요청 전 결제 정보 저장
-    public void savePaymentInfo(PaymentInfoRequestDTO requestDTO, TokenUserInfo userInfo) {
+    public void savePaymentInfo(PaymentInfoRequestDTO requestDTO, CustomUserDetails userDetails) {
         // orderId로 DB에서 조회하기
         Optional<PaymentInfo> foundOrderId = paymentInfoRepository.findByOrderId(requestDTO.getOrderId());
         log.info("결제요청 들어왔다! {}", requestDTO);
@@ -65,7 +65,7 @@ public class TossService {
     }
 
     // 토스 결제 승인 요청
-    public TossPaymentResponseDTO confirm(PaymentConfirmReqDTO requestDTO, TokenUserInfo userInfo) throws JsonProcessingException {
+    public TossPaymentResponseDTO confirm(PaymentConfirmReqDTO requestDTO, CustomUserDetails userDetails) throws JsonProcessingException {
         String authorizations = getEncodedKey(tossPaymentsConfig.getTossSecretKey());
         // 요청 데이터
         int amount = requestDTO.getAmount();
@@ -88,7 +88,7 @@ public class TossService {
         TosspaymentRequestDTO tosspaymentRequestDTO = getMapResponseEntity(orderId, paymentKey, amount, authorizations);
 
         // User 정보 조회
-        User user = userRepository.findById(userInfo.getEmail()).orElseThrow(
+        User user = userRepository.findById(userDetails.getUser().getId()).orElseThrow(
                 () -> new UserNotFoundException("회원이 존재하지 않습니다.")
         );
 
@@ -235,10 +235,10 @@ public class TossService {
 
     // 결제 취소
     // /v1/payments/{paymentKey}/cancel
-    public TossPaymentResponseDTO cancel(TokenUserInfo userInfo, PaymentConfirmReqDTO reqDTO) throws JsonProcessingException {
+    public TossPaymentResponseDTO cancel(CustomUserDetails userDetails, PaymentConfirmReqDTO reqDTO) throws JsonProcessingException {
 
         // 유저 정보 가져오기
-        User user = userRepository.findById(userInfo.getEmail()).orElseThrow(
+        User user = userRepository.findById(userDetails.getUser().getId()).orElseThrow(
                 () -> new UserNotFoundException("존재하지 않는 유저 입니다.")
         );
 

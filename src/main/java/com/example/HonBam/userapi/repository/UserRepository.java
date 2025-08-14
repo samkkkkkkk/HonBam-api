@@ -17,7 +17,7 @@ public interface UserRepository
     boolean existsByEmail(String value);
 
     // 아이디 중복체크
-    boolean existsByUserId(String value);
+    boolean existsByNickname(String value);
 
     // 특정 ID를 제외한 모든 사용자 조회
     List<User> findAllByIdNot(String id);

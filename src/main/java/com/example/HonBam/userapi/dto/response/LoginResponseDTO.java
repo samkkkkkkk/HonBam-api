@@ -21,31 +21,25 @@ public class LoginResponseDTO {
     @JsonFormat(pattern = "yyyy년 MM월 dd일")
     private LocalDate joinDate;
 
-    private String token; // 인증 토큰
-    private String role; // 권한
+    private String role;
     private String userPay;
     private String address;
     private String phoneNumber;
-    private String password;
-    private String nickName;
+    private String nickname;
 
 
 
-
-    public LoginResponseDTO(User user, String token) {
-        this.nickName = user.getNickName();
+    public LoginResponseDTO(User user) {
+        this.id = user.getId();
         this.email = user.getEmail();
         this.userName = user.getUserName();
+        // user.getJoinDate() 타입이 LocalDateTime이면 toLocalDate()로 변환
         this.joinDate = LocalDate.from(user.getJoinDate());
-        this.token = token;
         this.role = String.valueOf(user.getRole());
         this.userPay = String.valueOf(user.getUserPay());
         this.address = user.getAddress();
         this.phoneNumber = user.getPhoneNumber();
-        this.id = user.getId();
-
-
-
+        this.nickname = user.getNickname();
     }
 }
 

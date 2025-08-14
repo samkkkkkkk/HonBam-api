@@ -7,6 +7,7 @@ import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
 import com.example.HonBam.userapi.dto.response.KakaoUserDTO;
 import com.example.HonBam.userapi.dto.response.LoginResponseDTO;
+import com.example.HonBam.userapi.dto.response.UserInfoResponseDTO;
 import com.example.HonBam.userapi.dto.response.UserSignUpResponseDTO;
 import com.example.HonBam.userapi.entity.Role;
 import com.example.HonBam.userapi.entity.User;
@@ -82,7 +83,7 @@ public class UserService {
     public boolean isDuplicate(String target, String value) {
 
         if (target.equals("userId")) {
-            return userRepository.existsByUserId(value);
+            return userRepository.existsByNickname(value);
         } else if (target.equals("email")) {
             return userRepository.existsByEmail(value);
         }
@@ -91,7 +92,7 @@ public class UserService {
     }
 
     // 회원 인증
-    public LoginResponseDTO authenticate(final LoginRequestDTO dto) {
+    public User authenticate(final LoginRequestDTO dto) {
 
         // 이메일을 통해 회원 정보 조회
         User user = userRepository.findByEmail(dto.getEmail())
@@ -107,13 +108,7 @@ public class UserService {
             throw new InvalidPasswordException("비밀번호가 틀렸습니다.");
         }
 
-        log.info("{}님 로그인 성공!", user.getUserName());
-
-        // 로그인 성공 후에 클라이언트에게 뭘 리턴할 것인가???
-        // -> JWT를 클라이언트에게 발급해 주어야 한다!
-        String token = tokenProvider.createToken(user);
-
-        return new LoginResponseDTO(user, token);
+        return user;
 
     }
 
@@ -138,7 +133,7 @@ public class UserService {
         // 토큰을 재발급! (새롭게 변경된 정보로)
         String token = tokenProvider.createToken(saved);
 
-        return new LoginResponseDTO(saved, token);
+        return new LoginResponseDTO(saved);
     }
 
     // 프리미엄으로 등급 업 ( 결제 )
@@ -161,7 +156,7 @@ public class UserService {
         // 토큰을 재발급! (새롭게 변경된 정보로)
         String token = tokenProvider.createToken(saved);
 
-        return new LoginResponseDTO(saved, token);
+        return new LoginResponseDTO(saved);
     }
 
     /**
@@ -227,7 +222,7 @@ public class UserService {
         foundUser.setAccessToken((String)responseData.get("access_token"));
         userRepository.save(foundUser);
 
-        return new LoginResponseDTO(foundUser, token);
+        return new LoginResponseDTO(foundUser);
 
     }
 
@@ -322,6 +317,10 @@ public class UserService {
 
         // 사용자가 존재하면 삭제합니다.
         userRepository.delete(user);
+    }
+
+    public UserInfoResponseDTO getUserInfo(CustomUserDetails userDetails) {
+        return new UserInfoResponseDTO(userDetails.getUser());
     }
 }
 

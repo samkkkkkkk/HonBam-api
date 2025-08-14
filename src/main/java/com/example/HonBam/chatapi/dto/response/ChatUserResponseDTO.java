@@ -12,7 +12,7 @@ public class ChatUserResponseDTO {
 
     public ChatUserResponseDTO(User user) {
         this.id = user.getId();
-        this.nickname = user.getNickName();
+        this.nickname = user.getNickname();
         this.profileImageUrl = user.getProfileImg();
     }
 }

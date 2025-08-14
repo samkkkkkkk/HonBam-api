@@ -1,5 +1,6 @@
 package com.example.HonBam.chatapi.api;
 
+import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.chatapi.dto.request.ChatRoomRequest;
 import com.example.HonBam.chatapi.dto.response.ChatRoomResponseDTO;
@@ -52,8 +53,8 @@ public class ChatRoomController {
 
     @GetMapping("/myrooms")
     public ResponseEntity<?> getMyChatRooms(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        log.info("Request to fetch chat rooms for user: {}", userInfo.getEmail());
-        List<ChatRoomResponseDTO> myRooms = chatRoomService.findMyChatRooms(userInfo.getEmail());
+        log.info("Request to fetch chat rooms for user: {}", userDetails.getUser().getEmail());
+        List<ChatRoomResponseDTO> myRooms = chatRoomService.findMyChatRooms(userDetails.getUser().getId());
         return ResponseEntity.ok().body(myRooms);
     }
 
