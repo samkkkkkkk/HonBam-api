@@ -1,4 +1,4 @@
-package com.example.HonBam.paymentsapi.util;
+package com.example.HonBam.util;
 
 import com.example.HonBam.paymentsapi.entity.SubscriptionInfo;
 import com.example.HonBam.paymentsapi.repository.SubscriptionInfoRepository;

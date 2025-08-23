@@ -2,9 +2,8 @@ package com.example.HonBam.userapi.api;
 
 import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.auth.TokenProvider;
-import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
-import com.example.HonBam.paymentsapi.util.CookieUtil;
+import com.example.HonBam.util.CookieUtil;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
 import com.example.HonBam.userapi.dto.response.LoginResponseDTO;
@@ -16,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,7 +28,6 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
 
 @RestController
 @Slf4j
@@ -171,7 +168,7 @@ public class UserController {
     }
 
     // 프로필 사진 이미지 데이터를 클라이언트에게 응답 처리
-    @GetMapping("/load-profile")
+    @GetMapping("/profile-image")
     public ResponseEntity<?> loadFile(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {

@@ -1,10 +1,12 @@
-package com.example.HonBam.paymentsapi.util;
+package com.example.HonBam.util;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
+import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
+@Component
 public class CookieUtil {
     // application.yml에서 주입해서 운영/개발 분기 가능
     @Value("${app.cookie.secure:true}")   // 운영은 true, 로컬 테스트시 false 설정 가능

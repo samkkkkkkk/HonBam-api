@@ -1,4 +1,4 @@
-package com.example.HonBam.paymentsapi.util;
+package com.example.HonBam.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
