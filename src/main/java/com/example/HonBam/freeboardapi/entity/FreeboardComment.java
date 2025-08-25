@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Setter @Getter
-@ToString(exclude = "freeboard") @EqualsAndHashCode
+@ToString @EqualsAndHashCode
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -37,11 +37,13 @@ public class FreeboardComment {
     @UpdateTimestamp
     private LocalDateTime updateTime;// 수정시간
 
+    @ToString.Exclude
     // FreeboardComment.java
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id")
     @JsonIgnore

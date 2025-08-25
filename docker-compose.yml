@@ -12,11 +12,15 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       TZ: Asia/Seoul
       LANG: C.UTF-8
-      command: >
-        --character-set-server=utf8mb4
-        --collation-server=utf8mb4_general_ci
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+      --secure-file-priv=/var/lib/mysql-files
+      --local-infile=1
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./init:/docker-entrypoint-initdb.d
+      - ./seed:/var/lib/mysql-files
     networks:
       - app-network
     healthcheck:

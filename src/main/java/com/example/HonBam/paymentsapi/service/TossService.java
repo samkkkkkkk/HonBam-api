@@ -82,8 +82,6 @@ public class TossService {
             throw new IllegalArgumentException("주문 정보가 일치하지 않습니다.");
         }
 
-        log.info("결제정보 확인 amount: {}, orderId: {}, paymentKey: {}", amount, orderId, paymentKey);
-
         // 결제 승인 정보 가져오기
         TosspaymentRequestDTO tosspaymentRequestDTO = getMapResponseEntity(orderId, paymentKey, amount, authorizations);
 
@@ -107,11 +105,11 @@ public class TossService {
             );
 
             SubManagement savedSubscription = subManagementRepository.save(new SubManagementReqDTO().toEntity(subscription, save));
-            log.info("구독권 관리: {}", savedSubscription);
+
 
             Long subInfoId = null;
             Optional<SubscriptionInfo> foundSubInfoId = subscriptionInfoRepository.findByUserId(user.getId());
-            if(foundSubInfoId.isPresent()) {
+            if (foundSubInfoId.isPresent()) {
                 subInfoId = foundSubInfoId.get().getSubInfoId();
             }
 

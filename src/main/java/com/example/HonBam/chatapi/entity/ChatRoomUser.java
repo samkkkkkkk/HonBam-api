@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
-@ToString(exclude = {"chatRoom", "user"})
+@ToString
 @EqualsAndHashCode
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,12 +19,14 @@ public class ChatRoomUser {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long chatUserId;
 
+    @ToString.Exclude
     @ManyToOne
     @JoinColumn(name = "room_id", nullable = false)
     private ChatRoom chatRoom;
 
+    @ToString.Exclude
     @ManyToOne
-    @JoinColumn(name = "id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     private LocalDateTime joinedAt;

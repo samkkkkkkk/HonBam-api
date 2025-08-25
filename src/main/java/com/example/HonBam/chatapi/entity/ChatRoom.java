@@ -10,7 +10,7 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
-@ToString(exclude = "participants")
+@ToString
 @EqualsAndHashCode
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,6 +24,7 @@ public class ChatRoom {
 
     private String avatarUrl; // 채팅방의 아바타 이미지 URL
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatRoomUser> participants = new ArrayList<>();
 

@@ -16,7 +16,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-
 @Entity
 @Table(name = "hb_user")
 public class User {
@@ -63,6 +62,7 @@ public class User {
 
     private String accessToken; // 카카오 로그인시 발급받는 accessToken을 저장 -> 로그아웃 때 필요
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<ChatRoomUser> chatRoomUsers = new ArrayList<>();
 
@@ -74,10 +74,6 @@ public class User {
 
     public void changeUserPay(UserPay userPay) {
         this.userPay = userPay;
-    }
-
-    public void setAccessToken(String accessToken){
-        this.accessToken = accessToken;
     }
 
 }

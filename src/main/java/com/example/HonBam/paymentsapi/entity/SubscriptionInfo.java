@@ -24,6 +24,7 @@ public class SubscriptionInfo {
     @NotNull
     private LocalDateTime dueDate;
 
+    @ToString.Exclude
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;

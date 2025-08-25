@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Map;
 
 @RestController
 @Slf4j
@@ -236,8 +237,19 @@ public class UserController {
         }
     }
 
+    @GetMapping("/verify")
+    public ResponseEntity<?> verify(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "UNAUTHORIZED"));
+        }
+        UserInfoResponseDTO dto = new UserInfoResponseDTO(userDetails.getUser());
+        return ResponseEntity.ok(dto);
+    }
+
+
     @GetMapping("/kakaoLogin")
     public ResponseEntity<?> kakaoLogin(String code) {
+
 //        log.info("/api/auth/kakaoLogin - GET! -code: {}", code);
         LoginResponseDTO responseDTO = userService.kakaoService(code);
 

@@ -58,6 +58,7 @@ public class WebSecurityConfig {
                         .antMatchers("/api/auth/userinfo").authenticated()
                         .antMatchers("/api/tosspay/info").authenticated()
                         .antMatchers("/api/tosspay/confirm").authenticated()
+                        .antMatchers("/api/auth/verify").authenticated()
 
                         // 공개 엔드포인트
                         .antMatchers("/", "/error").permitAll()

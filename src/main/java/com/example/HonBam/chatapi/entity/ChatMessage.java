@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = "chatRoom")
+@ToString
 @EqualsAndHashCode
 @Builder
 public class ChatMessage {
@@ -26,10 +26,12 @@ public class ChatMessage {
 
     private LocalDateTime messageTime;
 
+    @ToString.Exclude
     @ManyToOne
     @JoinColumn(name = "room_id", nullable = false)
     private ChatRoom chatRoom;
 
+    @ToString.Exclude
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User sender;

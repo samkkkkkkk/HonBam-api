@@ -219,7 +219,6 @@ public class UserService {
 
         String token = tokenProvider.createToken(foundUser);
 
-        foundUser.setAccessToken((String)responseData.get("access_token"));
         userRepository.save(foundUser);
 
         return new LoginResponseDTO(foundUser);
