@@ -53,7 +53,7 @@ public class WebSecurityConfig {
                         .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // 인증 필요한 엔드포인트(먼저 선언해서 우선순위 확보)
-                        .antMatchers(HttpMethod.POST, "/api/auth/paypromote").authenticated()
+                        .antMatchers( "/api/auth/paypromote").authenticated()
                         .antMatchers("/api/auth/profile-image").authenticated()
                         .antMatchers("/api/auth/userinfo").authenticated()
                         .antMatchers("/api/tosspay/info").authenticated()

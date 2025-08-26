@@ -2,7 +2,9 @@ package com.example.HonBam.userapi.service;
 
 import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.auth.TokenProvider;
-//import com.example.HonBam.aws.S3Service;
+import com.example.HonBam.exception.DuplicateEmailException;
+import com.example.HonBam.exception.InvalidPasswordException;
+import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
 import com.example.HonBam.userapi.dto.response.KakaoUserDTO;
@@ -13,13 +15,13 @@ import com.example.HonBam.userapi.entity.Role;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.entity.UserPay;
 import com.example.HonBam.userapi.repository.UserRepository;
-import com.example.HonBam.exception.DuplicateEmailException;
-import com.example.HonBam.exception.UserNotFoundException;
-import com.example.HonBam.exception.InvalidPasswordException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -114,27 +116,27 @@ public class UserService {
 
 
     // 프리미엄으로 등급 업
-    public LoginResponseDTO promoteToPremium(CustomUserDetails userDetails) {
-
-        User foundUser = userRepository.findById(userDetails.getUser().getId())
-                .orElseThrow(
-                        () -> new UserNotFoundException("회원 조회에 실패했습니다!")
-                );
-
-        // 일반(COMMON) 회원이 아니라면 예외 발생
-//        if(userInfo.getRole() != Role.COMMON) {
-//            throw new IllegalArgumentException("일반 회원이 아니라면 등급을 상승시킬 수 없습니다.");
-//        }
-
-        // 등급 변경
-        foundUser.changeRole(Role.PREMIUM);
-        User saved = userRepository.save(foundUser);
-
-        // 토큰을 재발급! (새롭게 변경된 정보로)
-        String token = tokenProvider.createToken(saved);
-
-        return new LoginResponseDTO(saved);
-    }
+//    public LoginResponseDTO promoteToPremium(CustomUserDetails userDetails) {
+//
+//        User foundUser = userRepository.findById(userDetails.getUser().getId())
+//                .orElseThrow(
+//                        () -> new UserNotFoundException("회원 조회에 실패했습니다!")
+//                );
+//
+//        // 일반(COMMON) 회원이 아니라면 예외 발생
+////        if(userInfo.getRole() != Role.COMMON) {
+////            throw new IllegalArgumentException("일반 회원이 아니라면 등급을 상승시킬 수 없습니다.");
+////        }
+//
+//        // 등급 변경
+//        foundUser.changeRole(Role.PREMIUM);
+//        User saved = userRepository.save(foundUser);
+//
+//        // 토큰을 재발급! (새롭게 변경된 정보로)
+//        String token = tokenProvider.createToken(saved);
+//
+//        return new LoginResponseDTO(saved);
+//    }
 
     // 프리미엄으로 등급 업 ( 결제 )
     public LoginResponseDTO promoteToPayPremium(CustomUserDetails userDetails) {
@@ -144,13 +146,13 @@ public class UserService {
                         () -> new UserNotFoundException("회원 조회에 실패했습니다!")
                 );
 
-        // 일반(COMMON) 회원이 아니라면 예외 발생
-//        if(userInfo.getRole() != Role.COMMON) {
+//        // 일반(COMMON) 회원이 아니라면 예외 발생
+//        if(userDetails.getUser().getRole() != Role.COMMON) {
 //            throw new IllegalArgumentException("일반 회원이 아니라면 등급을 상승시킬 수 없습니다.");
 //        }
 
         // 등급 변경
-        foundUser.changeUserPay(UserPay.PREMIUM);
+        foundUser.changeRole(Role.PREMIUM);
         User saved = userRepository.save(foundUser);
 
         // 토큰을 재발급! (새롭게 변경된 정보로)

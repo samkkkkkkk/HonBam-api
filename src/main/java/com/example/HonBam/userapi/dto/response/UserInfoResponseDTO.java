@@ -12,7 +12,7 @@ public class UserInfoResponseDTO {
     private String address;
     private String phoneNumber;
     private String nickname;
-    private String userPay;
+    private String userRole;
     private String email;
 
     public UserInfoResponseDTO(User user) {
@@ -21,7 +21,7 @@ public class UserInfoResponseDTO {
         this.address = user.getAddress();
         this.phoneNumber = user.getPhoneNumber();
         this.nickname = user.getNickname();
-        this.userPay = String.valueOf(user.getUserPay());
+        this.userRole = String.valueOf(user.getRole());
         this.email = user.getEmail();
     }
 }
