@@ -1,7 +1,6 @@
 package com.example.HonBam.auth;
 
 import com.example.HonBam.userapi.entity.Role;
-import com.example.HonBam.userapi.entity.UserPay;
 import lombok.*;
 
 @Getter

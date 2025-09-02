@@ -258,7 +258,7 @@ public class UserController {
 
 
     // 로그아웃 처리
-    @GetMapping("/logout")
+    @PostMapping("/logout")
     public ResponseEntity<?> logout(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
@@ -306,6 +306,7 @@ public class UserController {
 
     @GetMapping("/userinfo")
     public ResponseEntity<?> userInfo(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.info("userinfo 요청!");
         UserInfoResponseDTO userInfo = userService.getUserInfo(userDetails);
         return ResponseEntity.ok().body(userInfo);
     }

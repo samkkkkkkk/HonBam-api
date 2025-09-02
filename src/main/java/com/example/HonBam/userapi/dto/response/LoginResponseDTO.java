@@ -36,7 +36,6 @@ public class LoginResponseDTO {
         // user.getJoinDate() 타입이 LocalDateTime이면 toLocalDate()로 변환
         this.joinDate = LocalDate.from(user.getJoinDate());
         this.role = String.valueOf(user.getRole());
-        this.userPay = String.valueOf(user.getUserPay());
         this.address = user.getAddress();
         this.phoneNumber = user.getPhoneNumber();
         this.nickname = user.getNickname();

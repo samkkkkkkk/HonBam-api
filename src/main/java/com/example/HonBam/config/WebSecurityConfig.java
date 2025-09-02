@@ -1,17 +1,22 @@
 package com.example.HonBam.config;
 
+import com.example.HonBam.auth.CustomOAuth2UserService;
+import com.example.HonBam.auth.OAuth2FailureHandler;
+import com.example.HonBam.auth.OAuth2SuccessHandler;
 import com.example.HonBam.filter.JwtAuthFilter;
 import com.example.HonBam.filter.JwtExceptionFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.userinfo.CustomUserTypesOAuth2UserService;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -29,6 +34,9 @@ public class WebSecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final JwtExceptionFilter jwtExceptionFilter;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final CustomOAuth2UserService customOAuth2UserService;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -40,7 +48,7 @@ public class WebSecurityConfig {
 
         http
                 // CORS
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(Customizer.withDefaults())
                 // CSRF (개발 단계 비활성화; 운영 전 전환 고려)
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(b -> b.disable())
@@ -53,7 +61,7 @@ public class WebSecurityConfig {
                         .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // 인증 필요한 엔드포인트(먼저 선언해서 우선순위 확보)
-                        .antMatchers( "/api/auth/paypromote").authenticated()
+                        .antMatchers("/api/auth/paypromote").authenticated()
                         .antMatchers("/api/auth/profile-image").authenticated()
                         .antMatchers("/api/auth/userinfo").authenticated()
                         .antMatchers("/api/tosspay/info").authenticated()
@@ -61,6 +69,7 @@ public class WebSecurityConfig {
                         .antMatchers("/api/auth/verify").authenticated()
 
                         // 공개 엔드포인트
+                        .antMatchers("/oauth2/**").permitAll()
                         .antMatchers("/", "/error").permitAll()
                         .antMatchers("/api/auth/**").permitAll()
                         .antMatchers("/api/recipe/**").permitAll()
@@ -70,6 +79,11 @@ public class WebSecurityConfig {
 
                         // 나머지는 인증
                         .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth -> oauth
+                        .userInfoEndpoint(u -> u.userService(customOAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
                 );
 
         // ===== 필터 순서: 예외 → JWT → UsernamePasswordAuthenticationFilter 이전 =====

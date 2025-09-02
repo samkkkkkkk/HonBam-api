@@ -51,10 +51,10 @@ public class SubscriptionService {
         for (SubscriptionInfo s : expireDateList) {
             System.out.println("s = " + s.getDueDate());
                 Optional<User> user = userRepository.findById(s.getUser().getId());
-                user.ifPresent(u -> {
-                    u.setUserPay(UserPay.NORMAL);
-                    userRepository.save(u);
-                });
+//                user.ifPresent(u -> {
+//                    u.setUserPay(UserPay.NORMAL);
+//                    userRepository.save(u);
+//                });
                 // websocket으로 메세지 전송
 //                webSocketNotifier.notifyClients("안녕ㅎㅎ");
             log.info("스케쥴러 실행 날짜:{}",s.getDueDate());

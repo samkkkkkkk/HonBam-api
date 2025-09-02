@@ -42,6 +42,7 @@ public class User {
     private String address;
 
     @Setter
+    @Builder.Default
     private SubscriptionStatus subscriptionStatus = SubscriptionStatus.EXPIRED;
 
     @CreationTimestamp
@@ -52,11 +53,11 @@ public class User {
     @Builder.Default
     private Role role = Role.COMMON; // 유저 권한
 
-    @Enumerated(EnumType.STRING)
-    //    @ColumnDefault("'COMMON'")
-    @Builder.Default
-    @Setter
-    private UserPay userPay = UserPay.NORMAL;
+//    @Enumerated(EnumType.STRING)
+//    //    @ColumnDefault("'COMMON'")
+//    @Builder.Default
+//    @Setter
+//    private UserPay userPay = UserPay.NORMAL;
 
     private String profileImg; // 프로필 이미지 경로
 
@@ -64,6 +65,7 @@ public class User {
 
     @ToString.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @Builder.Default
     private List<ChatRoomUser> chatRoomUsers = new ArrayList<>();
 
 
@@ -72,9 +74,17 @@ public class User {
         this.role = role;
     }
 
-    public void changeUserPay(UserPay userPay) {
-        this.userPay = userPay;
+    public void changeUserName(String name) {
+        this.userName = name;
     }
+
+    public void changeProfileImage(String imageUrl) {
+        this.profileImg = imageUrl;
+    }
+
+//    public void changeUserPay(UserPay userPay) {
+//        this.userPay = userPay;
+//    }
 
 }
 
