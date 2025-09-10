@@ -1,6 +1,8 @@
 package com.example.HonBam.auth;
 
 import com.example.HonBam.auth.dto.ProviderProfile;
+import com.example.HonBam.userapi.entity.LoginProvider;
+import com.example.HonBam.userapi.entity.Role;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             throw new OAuth2AuthenticationException(" 네이버 개발자 콘솔의 scope와 서비스 정책을 확인하세요.");
         }
 
+        LoginProvider provider = LoginProvider.from(registrationId);
+
         // 이메일 기준 사용자 조회/생성
         User user = userRepository.findByEmail(profile.getEmail()).orElseGet(() -> {
             String dummyPassword = "{noop}" + UUID.randomUUID();
@@ -48,9 +52,16 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                     .nickname(profile.getNickname())
                     .password(dummyPassword)
                     .profileImg(profile.getImageUrl())
+                    .loginProvider(provider)
+                    .role(Role.COMMON)
                     .build();
             return userRepository.save(created);
         });
+
+        if (user.getLoginProvider() == null) {
+            user.changeLoginProvider(provider);
+            userRepository.save(user);
+        }
 
         // 프로필 변경분 반영
         boolean changed = false;
@@ -97,6 +108,18 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 String name = str(r.get("name"));
                 String image = str(r.get("profile_image"));
                 return new ProviderProfile(id, email, name, name, image);
+            }
+            case "kakao": {
+                String id = str(attrs.get("id"));
+                Map<String, Object> kakao_account = (Map<String, Object>) attrs.get("kakao_account");
+                String email = str(kakao_account.get("email"));
+
+                Map<String, Object> profile = (Map<String, Object>) kakao_account.get("profile");
+                String nickname = str(profile.get("nickname"));
+                String image = str(profile.get("profile_image_url"));
+
+                return new ProviderProfile(id, email, nickname, nickname, image);
+
             }
             default:
                 throw new OAuth2AuthenticationException("미지원 OAuth2 공급자: " + registrationId);

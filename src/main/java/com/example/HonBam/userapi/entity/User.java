@@ -49,19 +49,18 @@ public class User {
     private LocalDateTime joinDate;
 
     @Enumerated(EnumType.STRING)
-//    @ColumnDefault("'COMMON'")
     @Builder.Default
     private Role role = Role.COMMON; // 유저 권한
 
-//    @Enumerated(EnumType.STRING)
-//    //    @ColumnDefault("'COMMON'")
-//    @Builder.Default
-//    @Setter
-//    private UserPay userPay = UserPay.NORMAL;
 
     private String profileImg; // 프로필 이미지 경로
 
     private String accessToken; // 카카오 로그인시 발급받는 accessToken을 저장 -> 로그아웃 때 필요
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LoginProvider loginProvider;
+
 
     @ToString.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
@@ -82,10 +81,9 @@ public class User {
         this.profileImg = imageUrl;
     }
 
-//    public void changeUserPay(UserPay userPay) {
-//        this.userPay = userPay;
-//    }
-
+    public void changeLoginProvider(LoginProvider provider) {
+        this.loginProvider = provider;
+    }
 }
 
 

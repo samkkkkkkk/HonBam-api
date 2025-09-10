@@ -2,7 +2,10 @@ package com.example.HonBam.userapi.api;
 
 import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.auth.TokenProvider;
+import com.example.HonBam.auth.repository.RefreshTokenRepository;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
+import com.example.HonBam.userapi.entity.LoginProvider;
+import com.example.HonBam.userapi.service.SocialLogoutService;
 import com.example.HonBam.util.CookieUtil;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
@@ -13,11 +16,16 @@ import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
@@ -25,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -39,6 +48,11 @@ public class UserController {
     private final UserService userService;
     private final TokenProvider tokenProvider;
     private final CookieUtil cookieUtil; // @Component 등록된 경우 주입
+    private final SocialLogoutService socialLogoutService;
+    private final OAuth2AuthorizedClientService clientService;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
+
 
 
     // 이메일 중복 확인 요청 처리
@@ -110,34 +124,6 @@ public class UserController {
                 // 4) 응답 바디: 필요한 최소 정보만
                 .body(new LoginResponseDTO(user));
     }
-
-//    // 일반 회원을 프리미엄 회원으로 승격하는 요청 처리
-//    @PutMapping("/promote")
-//    // 권한 검사 (해당 권한이 아니라면 인가처리 거부 -> 403 코드 리턴)
-//    // 메서드 호출 전에 권한 검사 -> 요청 당시 토큰에 있는 user 정보가 ROLE_COMMON이라는 권한을 가지고 있는지 검사.
-//    @PreAuthorize("hasRole('ROLE_COMMON')")
-//    public ResponseEntity<?> promote(
-//            @AuthenticationPrincipal CustomUserDetails userDetails
-//    ) {
-//        log.info("/api/auth/promote PUT!");
-//
-//        try {
-//            LoginResponseDTO responseDTO = userService.promoteToPremium(userDetails);
-//            return ResponseEntity.ok()
-//                    .body(responseDTO);
-//        } catch (NoRegisteredArgumentsException | IllegalArgumentException e) {
-//            // 예상 가능한 예외 (직접 생성하는 예외 처리)
-//            e.printStackTrace();
-//            log.warn(e.getMessage());
-//            return ResponseEntity.badRequest()
-//                    .body(e.getMessage());
-//        } catch (Exception e) {
-//            // 예상하지 못한 예외 처리
-//            e.printStackTrace();
-//            return ResponseEntity.internalServerError()
-//                    .body(e.getMessage());
-//        }
-//    }
 
 
     // 일반 회원을 프리미엄 회원으로 승격하는 요청 처리
@@ -257,16 +243,42 @@ public class UserController {
     }
 
 
-    // 로그아웃 처리
+    //     로그아웃 처리
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        if (userDetails != null) userService.logout(userDetails); // 서버 저장형 refresh 무효화(Optional)
-        return ResponseEntity.noContent()
-                .header(HttpHeaders.SET_COOKIE, cookieUtil.delete("access_token").toString())
-                .header(HttpHeaders.SET_COOKIE, cookieUtil.delete("refresh_token").toString())
-                .build();
+    public ResponseEntity<?> logout(HttpServletResponse response,
+                                    Authentication authentication) {
+        log.info("로그아웃 요청이 들어옴");
+
+        // (공통) 쿠키 삭제
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.delete("access_token").toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.delete("refresh_token").toString());
+
+        // 사용자 정보
+        CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
+        User user = principal.getUser();
+
+        // RefreshToken 무효화 (DB + Redis)
+        socialLogoutService.invalidateUserTokens(user.getId());
+
+        // loginProvider를 통해 로그인 방식 비교
+        if (user.getLoginProvider() == LoginProvider.KAKAO) {
+           // Redis에서 SNS acceessToken 꺼내오기
+            String key = "social:token:" + user.getId();
+            Object accessTokenObj = redisTemplate.opsForHash().get(key, "accessToken");
+
+            if (accessTokenObj != null) {
+                String accessToken = accessTokenObj.toString();
+                socialLogoutService.loginFromKakao(accessToken);
+            }
+            redisTemplate.delete(key);
+
+            // Redis에서 SNS 토큰 삭제
+        } else if (user.getLoginProvider() == LoginProvider.NAVER) {
+            String naverLoginUrl = socialLogoutService.getNaverLogout("http://localhost:3000");
+            return ResponseEntity.ok(Map.of("redirectUrl", naverLoginUrl));
+        }
+
+        return ResponseEntity.ok(Map.of("success", true, "message", "logout success"));
     }
 
 

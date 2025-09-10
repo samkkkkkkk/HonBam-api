@@ -73,7 +73,7 @@ dependencies {
     // RebbitMQ
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
-
+    implementation 'commons-codec:commons-codec:1.15'
 
     implementation 'commons-io:commons-io:2.8.0'
 
