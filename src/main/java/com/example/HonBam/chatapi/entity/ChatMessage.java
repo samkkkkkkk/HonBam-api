@@ -1,39 +1,40 @@
 package com.example.HonBam.chatapi.entity;
 
-import com.example.HonBam.userapi.entity.User;
 import lombok.*;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Getter
-@Setter
+@Table(name = "chat_message")
+@Getter @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString
-@EqualsAndHashCode
-@Builder
 public class ChatMessage {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long messageId;
+    private Long id; // 메시지 PK
 
-
-    private String message;
-
-    private LocalDateTime messageTime;
-
-    @ToString.Exclude
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id", nullable = false)
-    private ChatRoom chatRoom;
+    private ChatRoom room;
 
-    @ToString.Exclude
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User sender;
+    @Column(name = "sender_id", nullable = false, length = 36)
+    private String senderId;
 
+    @Column(name = "sender_name", nullable = false)
+    private String senderName;
+
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String content;
+
+    @Column(name = "timestamp", nullable = false)
+    private LocalDateTime timestamp;
+
+    @PrePersist
+    public void prePersist() {
+        this.timestamp = LocalDateTime.now();
+    }
 }

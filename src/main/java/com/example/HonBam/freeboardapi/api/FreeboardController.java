@@ -1,11 +1,10 @@
 package com.example.HonBam.freeboardapi.api;
 
-import com.example.HonBam.auth.CustomUserDetails;
+import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.freeboardapi.dto.request.CommentModifyRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardCommentRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardRequestDTO;
 import com.example.HonBam.freeboardapi.dto.response.FreeboardCommentResponseDTO;
-import com.example.HonBam.freeboardapi.entity.FreeboardComment;
 import com.example.HonBam.freeboardapi.service.FreeboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +26,10 @@ public class FreeboardController {
     // 게시글 등록 요청
     @PostMapping
     public ResponseEntity<?> createContent(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @AuthenticationPrincipal TokenUserInfo userInfo,
             @RequestBody FreeboardRequestDTO requestDTO
     ) {
-        return ResponseEntity.ok(freeboardService.createContent(requestDTO, userDetails));
+        return ResponseEntity.ok(freeboardService.createContent(requestDTO, userInfo));
     }
 
     // 게시글 목록 조회
@@ -42,20 +41,20 @@ public class FreeboardController {
     // 게시글 삭제 요청
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteContent(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable("id") Long id
     ){
-        return ResponseEntity.ok(freeboardService.delete(userDetails.getUser().getId(), id));
+        return ResponseEntity.ok(freeboardService.delete(userInfo.getUserId(), id));
     }
 
     // 게시글 수정하기
     @PatchMapping("/{id}")
     public ResponseEntity<?> modifyContent(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable("id") Long id,
-            @RequestBody FreeboardRequestDTO RequestDTO
+            @RequestBody FreeboardRequestDTO requestDTO
     ) {
-        return ResponseEntity.ok(freeboardService.modify(userDetails, id, RequestDTO));
+        return ResponseEntity.ok(freeboardService.modify(userInfo, id, requestDTO));
 
     }
 
@@ -68,17 +67,16 @@ public class FreeboardController {
     // 댓글 등록
     @PostMapping("/comment")
     public ResponseEntity<List<FreeboardCommentResponseDTO>> createComment(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @AuthenticationPrincipal TokenUserInfo userInfo,
             @RequestBody FreeboardCommentRequestDTO dto
     ){
 
-        return ResponseEntity.ok(freeboardService.commentRegist(dto, userDetails));
+        return ResponseEntity.ok(freeboardService.commentRegist(dto, userInfo));
     }
 
     // 댓글 목록 요청
     @GetMapping("/comment")
     public ResponseEntity<?> commentLis (
-            @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam Long id
     ){
 
@@ -89,23 +87,21 @@ public class FreeboardController {
     // 댓글 삭제 요청
     @DeleteMapping("/comment/{commentId}")
     public ResponseEntity<?> deleteComment(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable() Long commentId
     ) {
 
-        return ResponseEntity.ok().body(freeboardService.commentDelete(userDetails, commentId));
+        return ResponseEntity.ok().body(freeboardService.commentDelete(userInfo, commentId));
 
     }
 
     // 댓글 수정
     @PatchMapping("/comment")
     public ResponseEntity<?> modifyComment(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long id,
+            @AuthenticationPrincipal TokenUserInfo userInfo,
             @RequestBody CommentModifyRequestDTO requestDTO
     ){
-        requestDTO.setId(id);
-        return ResponseEntity.ok(freeboardService.modify(requestDTO, userDetails));
+        return ResponseEntity.ok(freeboardService.modify(requestDTO, userInfo));
     }
 
 

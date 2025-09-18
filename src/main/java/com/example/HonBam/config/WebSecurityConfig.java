@@ -30,7 +30,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
-@EnableGlobalMethodSecurity(prePostEnabled = true) // 5.x 스타일
+@EnableGlobalMethodSecurity(prePostEnabled = true) // @PreAuthorize 활성화
 public class WebSecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
@@ -48,37 +48,39 @@ public class WebSecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-                // CORS
                 .cors(Customizer.withDefaults())
-                // CSRF (개발 단계 비활성화; 운영 전 전환 고려)
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(b -> b.disable())
-                // 세션 미사용
+                .formLogin(f -> f.disable()) // ← 기본 로그인폼 redirect 방지
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // ===== 인가 규칙: 5.x는 authorizeRequests + antMatchers =====
                 .authorizeRequests(auth -> auth
-                        // Preflight 전부 허용
                         .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 인증 필요한 엔드포인트(먼저 선언해서 우선순위 확보)
-                        .antMatchers("/api/auth/paypromote").authenticated()
-                        .antMatchers("/api/auth/profile-image").authenticated()
-                        .antMatchers("/api/auth/userinfo").authenticated()
-                        .antMatchers("/api/tosspay/info").authenticated()
-                        .antMatchers("/api/tosspay/confirm").authenticated()
-                        .antMatchers("/api/auth/verify").authenticated()
-
-                        // 공개 엔드포인트
+                        // 공개 API
+                        .antMatchers(HttpMethod.POST, "/api/auth").permitAll() // 회원가입
+                        .antMatchers("/api/auth/login").permitAll()
+                        .antMatchers("/api/auth/check").permitAll()
+                        .antMatchers("/api/auth/refresh").permitAll()
                         .antMatchers("/oauth2/**").permitAll()
                         .antMatchers("/", "/error").permitAll()
-                        .antMatchers("/api/auth/**").permitAll()
                         .antMatchers("/api/recipe/**").permitAll()
                         .antMatchers("/api/freeboard/**").permitAll()
                         .antMatchers("/api/posts/**").permitAll()
+                        .antMatchers("/api/chat/**").permitAll()
                         .antMatchers("/ws-chat/**", "/chat/**", "/redis/**", "/chatRooms/**", "/topic/**", "/app/**").permitAll()
 
-                        // 나머지는 인증
+                        // 인증 필요
+                        .antMatchers("/api/auth/paypromote").authenticated()
+                        .antMatchers("/api/auth/profile-image").authenticated()
+                        .antMatchers("/api/auth/profile-s3").authenticated()
+                        .antMatchers("/api/auth/userinfo").authenticated()
+                        .antMatchers("/api/auth/verify").authenticated()
+                        .antMatchers("/api/auth/logout").authenticated()
+                        .antMatchers("/api/auth/delete").authenticated()
+                        .antMatchers("/api/tosspay/info").authenticated()
+                        .antMatchers("/api/tosspay/confirm").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth
@@ -86,6 +88,7 @@ public class WebSecurityConfig {
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler)
                 );
+
 
         // ===== 필터 순서: 예외 → JWT → UsernamePasswordAuthenticationFilter 이전 =====
         http.addFilterBefore(jwtExceptionFilter, UsernamePasswordAuthenticationFilter.class);
@@ -98,15 +101,14 @@ public class WebSecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration conf = new CorsConfiguration();
         conf.setAllowCredentials(true);
-        // 개발 편의: 다양한 로컬 포트 대응
         conf.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
                 "https://your-frontend.example.com"
         ));
-        conf.setAllowedMethods(Arrays.asList("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        conf.setAllowedHeaders(Arrays.asList("Content-Type","Authorization","X-CSRF-Token"));
-        // 필요 시 노출 헤더
+        conf.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        conf.setAllowedHeaders(Arrays.asList("Content-Type", "Authorization", "X-CSRF-Token"));
+        // 필요 시 클라이언트에 노출할 헤더
         // conf.setExposedHeaders(List.of("Set-Cookie"));
         conf.setMaxAge(3600L);
 

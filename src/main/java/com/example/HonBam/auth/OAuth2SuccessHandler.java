@@ -51,10 +51,10 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         User user = principal.getUser();
 
         // 1. JWT 발급( TokenProvider 시그니처 사용)
-        String access = tokenProvider.createToken(user);
+        String access = tokenProvider.createAccessToken(user);
         String refresh = tokenProvider.createRefreshToken(user);
 
-        // 2. RefreshToken DB 저장
+        // 2. RefreshToken hash를 DB 저장
         String refreshHash = DigestUtils.sha256Hex(refresh);
         RefreshToken entity = RefreshToken.builder()
                 .userId(user.getId())

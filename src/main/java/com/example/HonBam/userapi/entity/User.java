@@ -63,7 +63,7 @@ public class User {
 
 
     @ToString.Exclude
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ChatRoomUser> chatRoomUsers = new ArrayList<>();
 

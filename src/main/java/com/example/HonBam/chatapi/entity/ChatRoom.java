@@ -6,27 +6,46 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
-@Getter
-@Setter
-@ToString
-@EqualsAndHashCode
+@Table(name = "chat_room")
+@Getter @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatRoom {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long roomId;
+    private Long id; // 내부 PK (Auto Increment)
 
-    private String roomName;
+    @Column(name = "room_uuid", nullable = false, unique = true, length = 36)
+    private String roomUuid; // 외부 노출용 UUID
 
-    private String avatarUrl; // 채팅방의 아바타 이미지 URL
+    @Column(nullable = false)
+    private String name; // 방 이름
 
-    @ToString.Exclude
-    @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(name = "owner_id", nullable = false, length = 36)
+    private String ownerId; // 방 생성자 (hb_user.id)
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<ChatMessage> messages = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ChatRoomUser> participants = new ArrayList<>();
 
-    private LocalDateTime lastMessageTime;
+
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = LocalDateTime.now();
+        if (this.roomUuid == null) {
+            this.roomUuid = UUID.randomUUID().toString();
+        }
+    }
 }

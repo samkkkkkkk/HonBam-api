@@ -9,7 +9,4 @@ import java.util.Optional;
 
 @Repository
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
-    List<ChatMessage> findByChatRoomRoomIdOrderByMessageTimeAsc(Long roomId);
-    Optional<ChatMessage> findTopByChatRoom_RoomIdOrderByMessageTimeDesc(Long chatRoomId); // Corrected method
-
 }

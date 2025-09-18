@@ -7,32 +7,30 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "chat_room_user")
 @Getter
 @Setter
-@ToString
-@EqualsAndHashCode
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatRoomUser {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long chatUserId;
+    private Long id; // DB PK
 
-    @ToString.Exclude
-    @ManyToOne
-    @JoinColumn(name = "room_id", nullable = false)
-    private ChatRoom chatRoom;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_id", nullable = false)  // FK → ChatRoom.id
+    private ChatRoom room;
 
-    @ToString.Exclude
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)  // FK → hb_user.id
     private User user;
 
     private LocalDateTime joinedAt;
 
-    public ChatRoomUser(User user, ChatRoom chatRoom) {
-        this.chatRoom = chatRoom;
-        this.user = user;
+    @PrePersist
+    public void prePersist() {
+        this.joinedAt = LocalDateTime.now();
     }
 }

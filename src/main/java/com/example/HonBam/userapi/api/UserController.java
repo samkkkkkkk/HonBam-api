@@ -1,7 +1,7 @@
 package com.example.HonBam.userapi.api;
 
-import com.example.HonBam.auth.CustomUserDetails;
 import com.example.HonBam.auth.TokenProvider;
+import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.auth.repository.RefreshTokenRepository;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
 import com.example.HonBam.userapi.entity.LoginProvider;
@@ -13,6 +13,7 @@ import com.example.HonBam.userapi.dto.response.LoginResponseDTO;
 import com.example.HonBam.userapi.dto.response.UserInfoResponseDTO;
 import com.example.HonBam.userapi.dto.response.UserSignUpResponseDTO;
 import com.example.HonBam.userapi.entity.User;
+import com.example.HonBam.userapi.repository.UserRepository;
 import com.example.HonBam.userapi.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,9 +24,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
@@ -47,59 +45,37 @@ public class UserController {
 
     private final UserService userService;
     private final TokenProvider tokenProvider;
-    private final CookieUtil cookieUtil; // @Component 등록된 경우 주입
+    private final CookieUtil cookieUtil;
     private final SocialLogoutService socialLogoutService;
-    private final OAuth2AuthorizedClientService clientService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final UserRepository userRepository;
 
-
-
-    // 이메일 중복 확인 요청 처리
-    // GET: /api/auth/check?email=zzzz@xxx.com
     @GetMapping("/check")
-    public ResponseEntity<?> check(@RequestParam(value = "value") String value,
-                                   @RequestParam(value = "target") String target
-    ) {
+    public ResponseEntity<?> check(@RequestParam(value = "value") String value, @RequestParam(value = "target") String target) {
         if (target.trim().isEmpty()) {
-            return ResponseEntity.badRequest()
-                    .body("이메일이 없습니다!");
+            return ResponseEntity.badRequest().body("이메일이 없습니다!");
         }
-
         boolean resultFlag = userService.isDuplicate(target, value);
         log.info("{} 중복?? - {}", target, resultFlag);
-
         return ResponseEntity.ok().body(resultFlag);
     }
 
-    // 회원 가입 요청 처리
-    // POST: /api/auth
     @PostMapping
-    public ResponseEntity<?> signUp(
-            @Validated @RequestPart("user") UserRequestSignUpDTO dto,
-            @RequestPart(value = "profileImage", required = false) MultipartFile profileImg,
-            BindingResult result
-    ) {
+    public ResponseEntity<?> signUp(@Validated @RequestPart("user") UserRequestSignUpDTO dto, @RequestPart(value = "profileImage", required = false) MultipartFile profileImg, BindingResult result) {
         log.info("/api/auth POST! - {}", dto);
-
-
         if (result.hasErrors()) {
             log.warn(result.toString());
-            return ResponseEntity.badRequest()
-                    .body(result.getFieldError());
+            return ResponseEntity.badRequest().body(result.getFieldError());
         }
-
         try {
             String uploadedFilePath = null;
             if (profileImg != null) {
                 log.info("attached file name: {}", profileImg.getOriginalFilename());
-                // 전달받은 프로필 이미지를 먼저 지정된 경로에 저장한 후 DB 저장을 위해 경로를 받아오자.
                 uploadedFilePath = userService.uploadProfileImage(profileImg);
             }
-
             UserSignUpResponseDTO responseDTO = userService.create(dto, uploadedFilePath);
-            return ResponseEntity.ok()
-                    .body(responseDTO);
+            return ResponseEntity.ok().body(responseDTO);
         } catch (RuntimeException e) {
             log.warn("이메일 중복!");
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -110,205 +86,127 @@ public class UserController {
         }
     }
 
-    // 로그인 요청 처리
     @PostMapping("/login")
     public ResponseEntity<?> signIn(@Validated @RequestBody LoginRequestDTO dto) {
         User user = userService.authenticate(dto);
-
         String access = tokenProvider.createAccessToken(user);
         String refresh = tokenProvider.createRefreshToken(user);
-
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookieUtil.createHttpOnly("access_token", access, Duration.ofMinutes(15)).toString())
                 .header(HttpHeaders.SET_COOKIE, cookieUtil.createHttpOnly("refresh_token", refresh, Duration.ofDays(14)).toString())
-                // 4) 응답 바디: 필요한 최소 정보만
                 .body(new LoginResponseDTO(user));
     }
 
-
-    // 일반 회원을 프리미엄 회원으로 승격하는 요청 처리
     @PutMapping("/paypromote")
-    // 권한 검사 (해당 권한이 아니라면 인가처리 거부 -> 403 코드 리턴)
-    // 메서드 호출 전에 권한 검사 -> 요청 당시 토큰에 있는 user 정보가 ROLE_COMMON이라는 권한을 가지고 있는지 검사.
     @PreAuthorize("hasRole('ROLE_COMMON')")
-    public ResponseEntity<?> paypromote(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
+    public ResponseEntity<?> paypromote(@AuthenticationPrincipal TokenUserInfo userInfo) {
         log.info("/api/auth/paypromote PUT!");
-
         try {
-            LoginResponseDTO responseDTO = userService.promoteToPayPremium(userDetails);
-            return ResponseEntity.ok()
-                    .body(responseDTO);
+            LoginResponseDTO responseDTO = userService.promoteToPayPremium(userInfo);
+            return ResponseEntity.ok().body(responseDTO);
         } catch (NoRegisteredArgumentsException | IllegalArgumentException e) {
-            // 예상 가능한 예외 (직접 생성하는 예외 처리)
             e.printStackTrace();
             log.warn(e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            // 예상하지 못한 예외 처리
             e.printStackTrace();
-            return ResponseEntity.internalServerError()
-                    .body(e.getMessage());
+            return ResponseEntity.internalServerError().body(e.getMessage());
         }
     }
 
-    // 프로필 사진 이미지 데이터를 클라이언트에게 응답 처리
     @GetMapping("/profile-image")
-    public ResponseEntity<?> loadFile(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        log.info("/api/auth/load-profile - GET!, user: {}", userDetails.getUser().getEmail());
-
+    public ResponseEntity<?> loadFile(@AuthenticationPrincipal TokenUserInfo userInfo) {
+        log.info("/api/auth/load-profile - GET!, user: {}", userInfo.getUserId());
         try {
-            // 클라이언트가 요청한 프로필 사진을 응답해야 함.
-            // 1. 프로필 사진의 경로부터 얻어야 한다!
-            String filePath
-                    = userService.findProfilePath(userDetails.getUser().getId());
-
-            // 2. 얻어낸 파일 경로를 통해 실제 파일 데이터를 로드하기.
+            String filePath = userService.findProfilePath(userInfo.getUserId());
             File profileFile = new File(filePath);
-
-            // 모든 사용자가 프로필 사진을 가지는 것은 아니다. -> 프사가 없는 사람들은 경로가 존재하지 않을 것이다.
-            // 만약 존재하지 않는 경로라면 클라이언트로 404 status를 리턴.
             if (!profileFile.exists()) {
                 if (filePath.startsWith("http://")) {
                     return ResponseEntity.ok().body(filePath);
                 }
                 return ResponseEntity.notFound().build();
             }
-
-            // 해당 경로에 저장된 파일을 바이트 배열로 직렬화 해서 리턴.
             byte[] fileData = FileCopyUtils.copyToByteArray(profileFile);
-
-            // 3. 응답 헤더에 컨텐츠 타입을 설정.
             HttpHeaders headers = new HttpHeaders();
             MediaType contentType = findExtensionAndGetMediaType(filePath);
             if (contentType == null) {
-                return ResponseEntity.internalServerError()
-                        .body("발견된 파일은 이미지 파일이 아닙니다.");
+                return ResponseEntity.internalServerError().body("발견된 파일은 이미지 파일이 아닙니다.");
             }
             headers.setContentType(contentType);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(fileData);
-
+            return ResponseEntity.ok().headers(headers).body(fileData);
         } catch (IOException e) {
             e.printStackTrace();
-            return ResponseEntity.internalServerError()
-                    .body("파일을 찾을 수 없습니다.");
+            return ResponseEntity.internalServerError().body("파일을 찾을 수 없습니다.");
         }
     }
 
     private MediaType findExtensionAndGetMediaType(String filePath) {
-
-        // 파일 경로에서 확장자 추출하기
-        // C:/HonBam_upload/nsadjknjkncjndnjs_abc.jpg
-        String ext
-                = filePath.substring(filePath.lastIndexOf(".") + 1);
-
-        // 추출한 확장자를 바탕으로 MediaType을 설정. -> Header에 들어갈 Content-type이 됨.
+        String ext = filePath.substring(filePath.lastIndexOf(".") + 1);
         switch (ext.toUpperCase()) {
-            case "JPG":
-            case "JPEG":
-                return MediaType.IMAGE_JPEG;
-            case "PNG":
-                return MediaType.IMAGE_PNG;
-            case "GIF":
-                return MediaType.IMAGE_GIF;
-            default:
-                return null;
+            case "JPG": case "JPEG": return MediaType.IMAGE_JPEG;
+            case "PNG": return MediaType.IMAGE_PNG;
+            case "GIF": return MediaType.IMAGE_GIF;
+            default: return null;
         }
     }
 
     @GetMapping("/verify")
-    public ResponseEntity<?> verify(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        if (userDetails == null) {
+    public ResponseEntity<?> verify(@AuthenticationPrincipal TokenUserInfo userInfo) {
+        if (userInfo == null) {
             return ResponseEntity.status(401).body(Map.of("message", "UNAUTHORIZED"));
         }
-        UserInfoResponseDTO dto = new UserInfoResponseDTO(userDetails.getUser());
+        User user = userRepository.findById(userInfo.getUserId()).orElseThrow();
+        UserInfoResponseDTO dto = new UserInfoResponseDTO(user);
         return ResponseEntity.ok(dto);
     }
 
-
     @GetMapping("/kakaoLogin")
     public ResponseEntity<?> kakaoLogin(String code) {
-
-//        log.info("/api/auth/kakaoLogin - GET! -code: {}", code);
         LoginResponseDTO responseDTO = userService.kakaoService(code);
-
         return ResponseEntity.ok().body(responseDTO);
     }
 
-
-    //     로그아웃 처리
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response,
-                                    Authentication authentication) {
+    public ResponseEntity<?> logout(HttpServletResponse response, Authentication authentication) {
         log.info("로그아웃 요청이 들어옴");
-
-        // (공통) 쿠키 삭제
         response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.delete("access_token").toString());
         response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.delete("refresh_token").toString());
 
-        // 사용자 정보
-        CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
-        User user = principal.getUser();
+        TokenUserInfo principal = (TokenUserInfo) authentication.getPrincipal();
+        socialLogoutService.invalidateUserTokens(principal.getUserId());
 
-        // RefreshToken 무효화 (DB + Redis)
-        socialLogoutService.invalidateUserTokens(user.getId());
-
-        // loginProvider를 통해 로그인 방식 비교
+        User user = userRepository.findById(principal.getUserId()).orElseThrow();
         if (user.getLoginProvider() == LoginProvider.KAKAO) {
-           // Redis에서 SNS acceessToken 꺼내오기
             String key = "social:token:" + user.getId();
             Object accessTokenObj = redisTemplate.opsForHash().get(key, "accessToken");
-
             if (accessTokenObj != null) {
-                String accessToken = accessTokenObj.toString();
-                socialLogoutService.loginFromKakao(accessToken);
+                socialLogoutService.loginFromKakao(accessTokenObj.toString());
             }
             redisTemplate.delete(key);
-
-            // Redis에서 SNS 토큰 삭제
         } else if (user.getLoginProvider() == LoginProvider.NAVER) {
             String naverLoginUrl = socialLogoutService.getNaverLogout("http://localhost:3000");
             return ResponseEntity.ok(Map.of("redirectUrl", naverLoginUrl));
         }
-
         return ResponseEntity.ok(Map.of("success", true, "message", "logout success"));
     }
 
-
-    // 회원 탈퇴 요청 처리
-// DELETE: /api/auth
     @DeleteMapping("/delete")
-    public ResponseEntity<?> deleteUser(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        log.info("/api/auth DELETE! - user: {}", userDetails.getUser().getEmail());
-
+    public ResponseEntity<?> deleteUser(@AuthenticationPrincipal TokenUserInfo userInfo) {
+        log.info("/api/auth DELETE! - user: {}", userInfo.getUserId());
         try {
-            String userId = userDetails.getUser().getId();
-
-            // userId를 이용하여 해당 사용자를 삭제합니다.
-            userService.delete(userId);
-
-            return ResponseEntity.ok().body("회원 탈퇴가 정상적으로 처리되었습니다. " + userDetails.getUser().getEmail() + "님, 서비스를 이용해 주셔서 감사합니다.");
+            userService.delete(userInfo.getUserId());
+            return ResponseEntity.ok().body("회원 탈퇴가 정상적으로 처리되었습니다. " + userInfo.getUserId() + "님, 서비스를 이용해 주셔서 감사합니다.");
         } catch (Exception e) {
-            log.warn(userDetails.getUser().getEmail() + "님의 회원 탈퇴 처리 중 에러가 발생했습니다!");
+            log.warn(userInfo.getUserId() + "님의 회원 탈퇴 처리 중 에러가 발생했습니다!");
             e.printStackTrace();
-            return ResponseEntity.internalServerError().body(userDetails.getUser().getEmail() + "님의 회원 탈퇴 처리 중 문제가 발생했습니다. 다시 시도해 주세요.");
+            return ResponseEntity.internalServerError().body(userInfo.getUserId() + "님의 회원 탈퇴 처리 중 문제가 발생했습니다. 다시 시도해 주세요.");
         }
     }
 
-    // s3에서 불러온 프로필 사진 처리
     @GetMapping("/profile-s3")
-    public ResponseEntity<?> s3Profile(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
+    public ResponseEntity<?> s3Profile(@AuthenticationPrincipal TokenUserInfo userInfo) {
         try {
-            String profilePath = userService.findProfilePath(userDetails.getUser().getId());
+            String profilePath = userService.findProfilePath(userInfo.getUserId());
             return ResponseEntity.ok().body(profilePath);
         } catch (Exception e) {
             e.printStackTrace();
@@ -317,20 +215,18 @@ public class UserController {
     }
 
     @GetMapping("/userinfo")
-    public ResponseEntity<?> userInfo(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<?> userInfo(@AuthenticationPrincipal TokenUserInfo userInfo) {
         log.info("userinfo 요청!");
-        UserInfoResponseDTO userInfo = userService.getUserInfo(userDetails);
-        return ResponseEntity.ok().body(userInfo);
+        UserInfoResponseDTO responseDto = userService.getUserInfo(userInfo);
+        return ResponseEntity.ok().body(responseDto);
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest req) {
         String r = extractCookie(req,"refresh_token");
         if (r == null || !tokenProvider.validateRefreshToken(r)) return ResponseEntity.status(401).build();
-
         var info = tokenProvider.parseRefreshToken(r);
         String newAccess = tokenProvider.createAccessTokenByInfo(info);
-
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookieUtil.createHttpOnly("access_token", newAccess, Duration.ofMinutes(15)).toString())
                 .build();

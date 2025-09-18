@@ -1,12 +1,12 @@
 package com.example.HonBam.filter;
 
-import com.example.HonBam.auth.CustomUserDetailsService;
 import com.example.HonBam.auth.TokenProvider;
 import com.example.HonBam.auth.TokenUserInfo;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -20,6 +20,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collections;
 
 @Component
 @Slf4j
@@ -27,7 +28,6 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final TokenProvider tokenProvider;
-    private final CustomUserDetailsService customUserDetailsService;
 
     // 공개/예외 경로는 필터 스킵 (SecurityConfig와 일치하도록 유지)
     private static final String[] SKIP_PATTERNS = {
@@ -80,18 +80,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // access 전용 검증(+서명/만료)
             TokenUserInfo info = tokenProvider.validateAndGetTokenUserInfo(token);
 
-            var userDetails = customUserDetailsService.loadUserByUsername(info.getUserId());
             var authentication = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities()
+                    info, // Principal = TokenUserInfo
+                    null,
+                    Collections.singletonList(
+                            new SimpleGrantedAuthority("ROLE_" + info.getRole().name())
+                    )
             );
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
         } catch (JwtException | IllegalArgumentException e) {
-            // 유효하지 않은 토큰 → 인증 세팅 없이 진행(EntryPoint/AccessDeniedHandler에서 처리)
             log.warn("JWT 검증 실패: {}", e.getMessage());
         } catch (Exception e) {
-            // 기타 예외는 로깅 후 계속 진행(전역 예외필터에서 잡을 수 있음)
             log.warn("JWT 필터 처리 중 예외: {}", e.getMessage());
         }
 

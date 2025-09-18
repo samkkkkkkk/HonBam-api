@@ -1,6 +1,6 @@
 package com.example.HonBam.freeboardapi.service;
 
-import com.example.HonBam.auth.CustomUserDetails;
+import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.freeboardapi.dto.request.CommentModifyRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardCommentRequestDTO;
 import com.example.HonBam.freeboardapi.dto.request.FreeboardRequestDTO;
@@ -33,14 +33,12 @@ public class FreeboardService {
     private final FreeboardCommentRepository freeboardCommentRepository;
 
     // 공통 헬퍼
-    @Transactional(readOnly = true)
-    private User currentUser(CustomUserDetails userDetails) {
-        return userDetails.getUser();
-    }
-
-    @Transactional(readOnly = true)
-    private String currentUserId(CustomUserDetails userDetails) {
-        return userDetails.getUser().getUserName();
+    private User findUserByToken(TokenUserInfo userInfo) {
+        if (userInfo == null || userInfo.getUserId() == null) {
+            throw new RuntimeException("인증 정보가 유효하지 않습니다.");
+        }
+        return userRepository.findById(userInfo.getUserId())
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
     }
 
     @Transactional(readOnly = true)
@@ -76,9 +74,9 @@ public class FreeboardService {
     // 게시물 작성
     public FreeboardResponseDTO createContent(
             final FreeboardRequestDTO requestDto,
-            final CustomUserDetails userDetails) {
+            final TokenUserInfo userInfo) {
 
-        User user = currentUser(userDetails);
+        User user = findUserByToken(userInfo);
         freeboardRepository.save(requestDto.toEntity(user));
         return retrieve();
     }
@@ -112,11 +110,11 @@ public class FreeboardService {
 
 
     // 게시글 수정하기
-    public FreeboardDetailResponseDTO modify(CustomUserDetails userDetails,
+    public FreeboardDetailResponseDTO modify(TokenUserInfo userInfo,
                                              Long postId,
                                              FreeboardRequestDTO requestDTO) {
-        User user = currentUser(userDetails);
-        ensureCommentOwner(postId, user.getId());
+        User user = findUserByToken(userInfo);
+        ensurePostOwner(postId, user.getId());
 
         Freeboard found = getPostOrThrow(postId);
         Freeboard entity = requestDTO.toEntity(found, user);
@@ -130,10 +128,10 @@ public class FreeboardService {
     // 댓글 등록
     public List<FreeboardCommentResponseDTO> commentRegist(
             final FreeboardCommentRequestDTO dto,
-            final CustomUserDetails userDetails
+            final TokenUserInfo userInfo
     ) {
 
-        User user = currentUser(userDetails);
+        User user = findUserByToken(userInfo);
         Freeboard post = getPostOrThrow(dto.getId());
         freeboardCommentRepository.save(dto.toEntity(user, post));
         return commentDtoByPost(post.getId());
@@ -148,11 +146,11 @@ public class FreeboardService {
 
     // 댓글 유효성 검사
     // 삭제요청
-    public List<FreeboardCommentResponseDTO> commentDelete(CustomUserDetails userDetails, Long commentId) {
-        String userId = currentUserId(userDetails);
+    public List<FreeboardCommentResponseDTO> commentDelete(TokenUserInfo userInfo, Long commentId) {
+        User user = findUserByToken(userInfo);
         Long postId = getCommentOrThrow(commentId).getFreeboard().getId();
 
-        int affected = freeboardRepository.deleteByPostIdAndOwner(commentId, userId);
+        int affected = freeboardCommentRepository.deleteByCommentIdAndOwner(commentId, user.getId());
         if (affected == 0) throw new SecurityException("삭제 권한 없음 또는 대상 없음");
 
         return commentDtoByPost(postId);
@@ -161,9 +159,9 @@ public class FreeboardService {
 
     // 댓글 수정
     public List<FreeboardCommentResponseDTO> modify(CommentModifyRequestDTO requestDTO,
-                                                    CustomUserDetails userDetails) {
-        String userId = currentUserId(userDetails);
-        ensureCommentOwner(requestDTO.getId(), userId);
+                                                    TokenUserInfo userInfo) {
+        User user = findUserByToken(userInfo);
+        ensureCommentOwner(requestDTO.getId(), user.getId());
 
         FreeboardComment comment = getCommentOrThrow(requestDTO.getId());
         comment.setComment(requestDTO.getComment());
@@ -175,12 +173,14 @@ public class FreeboardService {
 
     // 작성자 검증(분리버전)
     @Transactional(readOnly = true)
-    public boolean validatePostWriter(CustomUserDetails userDetails, Long postId) {
-        return freeboardRepository.isPostOwner(postId, currentUserId(userDetails));
+    public boolean validatePostWriter(TokenUserInfo userInfo, Long postId) {
+        User user = findUserByToken(userInfo);
+        return freeboardRepository.isPostOwner(postId, user.getId());
     }
 
     @Transactional(readOnly = true)
-    public boolean validateCommentWriter(CustomUserDetails userDetails, Long commentId) {
-        return freeboardCommentRepository.isCommentOwner(commentId, currentUserId(userDetails));
+    public boolean validateCommentWriter(TokenUserInfo userInfo, Long commentId) {
+        User user = findUserByToken(userInfo);
+        return freeboardCommentRepository.isCommentOwner(commentId, user.getId());
     }
 }
