@@ -32,6 +32,12 @@ public class ChatRoom {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "last_message", columnDefinition = "TEXT")
+    private String lastMessage;
+
+    @Column(name = "last_message_time")
+    private LocalDateTime lastMessageTime;
+
     @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ChatMessage> messages = new ArrayList<>();
@@ -47,5 +53,11 @@ public class ChatRoom {
         if (this.roomUuid == null) {
             this.roomUuid = UUID.randomUUID().toString();
         }
+    }
+
+    // 메시지 저장 시 캐싱 필드 업데이트
+    public void updateLastMessage(String message, LocalDateTime time) {
+        this.lastMessage = message;
+        this.lastMessageTime = time;
     }
 }

@@ -67,10 +67,10 @@ public class WebSecurityConfig {
                         .antMatchers("/api/recipe/**").permitAll()
                         .antMatchers("/api/freeboard/**").permitAll()
                         .antMatchers("/api/posts/**").permitAll()
-                        .antMatchers("/api/chat/**").permitAll()
                         .antMatchers("/ws-chat/**", "/chat/**", "/redis/**", "/chatRooms/**", "/topic/**", "/app/**").permitAll()
 
                         // 인증 필요
+                        .antMatchers("/api/chat/**").authenticated()
                         .antMatchers("/api/auth/paypromote").authenticated()
                         .antMatchers("/api/auth/profile-image").authenticated()
                         .antMatchers("/api/auth/profile-s3").authenticated()

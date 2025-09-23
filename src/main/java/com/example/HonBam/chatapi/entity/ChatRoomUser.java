@@ -17,7 +17,7 @@ public class ChatRoomUser {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // DB PK
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id", nullable = false)  // FK → ChatRoom.id
@@ -29,8 +29,14 @@ public class ChatRoomUser {
 
     private LocalDateTime joinedAt;
 
+    @Column(name = "last_read_time")
+    private LocalDateTime lastReadTime;
+
     @PrePersist
     public void prePersist() {
         this.joinedAt = LocalDateTime.now();
+        if (this.lastReadTime == null) {
+            this.lastReadTime = this.joinedAt;
+        }
     }
 }

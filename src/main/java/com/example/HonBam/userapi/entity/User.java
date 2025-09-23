@@ -59,7 +59,8 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private LoginProvider loginProvider;
+    @Builder.Default
+    private LoginProvider loginProvider = LoginProvider.LOCAL;
 
 
     @ToString.Exclude

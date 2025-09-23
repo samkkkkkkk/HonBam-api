@@ -16,11 +16,12 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
 
 @Slf4j
-@Controller
+@RestController
 @RequiredArgsConstructor
 public class ChatMessageController {
 
