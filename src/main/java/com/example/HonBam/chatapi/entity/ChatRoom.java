@@ -38,9 +38,19 @@ public class ChatRoom {
     @Column(name = "last_message_time")
     private LocalDateTime lastMessageTime;
 
+    @Column(name = "is_direct", nullable = false)
+    private boolean isDirect;
+
+    @Column(name = "is_open", nullable = false)
+    private boolean isOpen;
+
+    @Column(name = "allow_join_all", nullable = false)
+    private boolean allowJoinAll;
+
     @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ChatMessage> messages = new ArrayList<>();
+
 
     @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
@@ -59,5 +69,13 @@ public class ChatRoom {
     public void updateLastMessage(String message, LocalDateTime time) {
         this.lastMessage = message;
         this.lastMessageTime = time;
+    }
+
+    // group 메시지 전환 메서드
+    public void convertToGroup(String newName) {
+        this.isDirect = false;
+        if (newName != null) {
+            this.name = newName;
+        }
     }
 }

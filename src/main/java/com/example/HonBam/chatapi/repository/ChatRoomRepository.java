@@ -6,10 +6,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     Optional<ChatRoom> findByRoomUuid(String roomUuid);
 
+    // 공개 채팅방 전체 조회
+    List<ChatRoom> findByIsOpenTrue();
+
+    // 공개 채팅방 + 키워드 검색
+    @Query("SELECT r FROM ChatRoom r WHERE r.isOpen = true AND r.name LIKE %:keyword%:")
+    List<ChatRoom> searchOpenRooms(@Param("keyword") String keyword);
 }

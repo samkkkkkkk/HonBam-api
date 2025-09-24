@@ -31,4 +31,10 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
             "HAVING COUNT(DISTINCT cru.user.id) = 2")
     Optional<ChatRoom> findDirectChatRoom(@Param("userA") String userA, @Param("userB") String userB);
 
+
+    @Query("SELECT cru FROM ChatRoomUser cru WHERE cru.room = :room AND cru.user.id = :userId")
+    Optional<ChatRoomUser> findByRoomAndUser_Id(@Param("room") ChatRoom room, @Param("userId") String userId);
+
+    long countByRoom(ChatRoom room);
+
 }

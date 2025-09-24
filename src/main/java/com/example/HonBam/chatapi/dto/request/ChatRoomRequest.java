@@ -16,5 +16,6 @@ public class ChatRoomRequest {
 
     private String name;
     private List<String> userIds;
+    private boolean isOpen;
 
 }
