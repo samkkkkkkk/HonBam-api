@@ -14,9 +14,9 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     Optional<ChatRoom> findByRoomUuid(String roomUuid);
 
     // 공개 채팅방 전체 조회
-    List<ChatRoom> findByIsOpenTrue();
+    List<ChatRoom> findByOpenTrue();
 
     // 공개 채팅방 + 키워드 검색
-    @Query("SELECT r FROM ChatRoom r WHERE r.isOpen = true AND r.name LIKE %:keyword%:")
+    @Query("SELECT r FROM ChatRoom r WHERE r.open = true AND r.name LIKE CONCAT('%', :keyword, '%')")
     List<ChatRoom> searchOpenRooms(@Param("keyword") String keyword);
 }

@@ -30,8 +30,16 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("CHAT_ROOM_ACCESS_DENIED", ex.getMessage()));
     }
 
+    @ExceptionHandler(ChatRoomValidationException.class)
+    public ResponseEntity<ErrorResponse> handleChatRoomValidationException(ChatRoomValidationException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("CHAT_ROOM_NOT_VALIDATED", ex.getMessage()));
+    }
+
     @ExceptionHandler(MessageSendException.class)
     public ResponseEntity<ErrorResponse> handleMessageSendException(MessageSendException ex) {
+
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("MESSAGE_SEND_ERROR", ex.getMessage()));

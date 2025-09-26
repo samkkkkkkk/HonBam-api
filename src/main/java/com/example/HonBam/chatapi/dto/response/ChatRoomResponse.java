@@ -1,5 +1,6 @@
 package com.example.HonBam.chatapi.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -10,11 +11,20 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ChatRoomResponse {
-    private String roomId;    // UUID만 클라이언트에 노출
+    private String roomId;
     private String name;
     private String ownerId;
-    private boolean isDirect;
-    private boolean isOpen;
-    private boolean allowJoinAll;
+
+    @JsonProperty("isDirect")
+    private boolean direct;
+
+    @JsonProperty("isOpen")
+    private boolean open;
+
+    private boolean allowJoinAll;  // 이건 그대로 괜찮음
+
     private LocalDateTime createdAt;
+
+    public boolean isDirect() { return direct; }
+    public boolean isOpen() { return open; }
 }

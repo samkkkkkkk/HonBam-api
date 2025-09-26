@@ -13,6 +13,6 @@ import java.util.Optional;
 @Repository
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
 
-    @Query("select count(m) from ChatMessage m where m.room.id = :roomId AND m.timestamp = :lastReadTime")
+    @Query("select count(m) from ChatMessage m where m.room.id = :roomId AND m.timestamp > :lastReadTime")
     int countUnreadMessages(@Param("roomId") long roomId, @Param("lastReadTime") LocalDateTime lastReadTime);
 }

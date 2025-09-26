@@ -1,5 +1,6 @@
 package com.example.HonBam.chatapi.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,4 +18,13 @@ public class ChatRoomListResponseDTO {
     private String lastMessage;
     private LocalDateTime lastMessageTime;
     int unReadCount;
+
+    @JsonProperty("isDirect")
+    private boolean direct;
+
+    @JsonProperty("isOpen")
+    private boolean open;
+
+    private boolean allowAllJoin;
+
 }

@@ -1,5 +1,6 @@
 package com.example.HonBam.chatapi.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,11 @@ import java.time.LocalDateTime;
 public class OpenChatRoomResponseDTO {
     private String roonId;
     private String name;
-    private int participantCont;
+    private int participantCount;
     private LocalDateTime lastMessageTime;
+
+    @JsonProperty("isOpen")
+    private boolean open;
+
+    private boolean allowJoinAll;
 }

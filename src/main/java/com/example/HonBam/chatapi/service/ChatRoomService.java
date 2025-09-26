@@ -12,11 +12,13 @@ import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.exception.ChatRoomAccessException;
 import com.example.HonBam.exception.ChatRoomNotFoundException;
+import com.example.HonBam.exception.ChatRoomValidationException;
 import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
 import com.example.HonBam.util.UserUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChatRoomService {
 
     private final ChatRoomRepository chatRoomRepository;
@@ -43,13 +46,17 @@ public class ChatRoomService {
     @Transactional
     public ChatRoomResponse createRoom(String requesterId, CreateRoomRequest dto) {
 
-        boolean isDirect = (dto.getParticipantIds() != null && dto.getParticipantIds().size() == 1);
+        if (!dto.isOpen() && (dto.getParticipantIds() == null || dto.getParticipantIds().isEmpty())) {
+            throw new ChatRoomValidationException("일반 채팅방을 생성할 때 최소 1명 이상의 참여자가 필요합니다.");
+        }
+
+        boolean isDirect = !dto.isOpen() && dto.getParticipantIds() != null && dto.getParticipantIds().size() == 1;
 
         ChatRoom room = ChatRoom.builder()
                 .ownerId(requesterId)
                 .name(isDirect ? "1:1 Chat" : dto.getName())
-                .isDirect(isDirect)
-                .isOpen(dto.isOpen())
+                .direct(isDirect)
+                .open(dto.isOpen())
                 .allowJoinAll(dto.isOpen() && dto.isAllowJoinAll())
                 .build();
 
@@ -75,6 +82,13 @@ public class ChatRoomService {
                         .build());
             }
 
+//            if (room.getName() == null || room.getName().isBlank()) {
+//                if (room.isDirect()) {
+//                    String displayName = room.getParticipants().stream()
+//                            .map(r -> !r.getId().equals(requesterId))
+//                }
+//            }
+
             // direct -> group 자동 변환
             long count = chatRoomUserRepository.countByRoom(room);
             if (count >= 3 && room.isDirect()) {
@@ -89,8 +103,8 @@ public class ChatRoomService {
                 .roomId(room.getRoomUuid())
                 .name(room.getName())
                 .ownerId(room.getOwnerId())
-                .isDirect(isDirect)
-                .isOpen(room.isOpen())
+                .direct(room.isDirect())
+                .open(room.isOpen())
                 .createdAt(room.getCreatedAt())
                 .allowJoinAll(room.isAllowJoinAll())
                 .build();
@@ -153,8 +167,12 @@ public class ChatRoomService {
                             .lastMessage(r.getLastMessage())
                             .lastMessageTime(r.getLastMessageTime())
                             .unReadCount((int) unread)
+                            .open(r.isOpen())
+                            .direct(r.isDirect())
+                            .allowAllJoin(r.isAllowJoinAll())
                             .build();
                 }).collect(Collectors.toList());
+
     }
 
     // 오픈 채팅방 리스트
@@ -165,14 +183,16 @@ public class ChatRoomService {
         if (keyword != null && !keyword.isBlank()) {
             rooms = chatRoomRepository.searchOpenRooms(keyword);
         } else {
-            rooms = chatRoomRepository.findByIsOpenTrue();
+            rooms = chatRoomRepository.findByOpenTrue();
         }
         return rooms.stream()
                 .map(r -> OpenChatRoomResponseDTO.builder()
                         .roonId(r.getRoomUuid())
                         .name(r.getName())
-                        .participantCont(r.getParticipants().size())
+                        .participantCount(r.getParticipants().size())
                         .lastMessageTime(r.getLastMessageTime())
+                        .open(r.isOpen())
+                        .allowJoinAll(r.isAllowJoinAll())
                         .build())
                 .collect(Collectors.toList());
     }

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
+@ToString
 @Table(name = "chat_room")
 @Getter @Setter
 @Builder
@@ -39,10 +40,10 @@ public class ChatRoom {
     private LocalDateTime lastMessageTime;
 
     @Column(name = "is_direct", nullable = false)
-    private boolean isDirect;
+    private boolean direct;
 
     @Column(name = "is_open", nullable = false)
-    private boolean isOpen;
+    private boolean open;
 
     @Column(name = "allow_join_all", nullable = false)
     private boolean allowJoinAll;
@@ -73,7 +74,7 @@ public class ChatRoom {
 
     // group 메시지 전환 메서드
     public void convertToGroup(String newName) {
-        this.isDirect = false;
+        this.direct = false;
         if (newName != null) {
             this.name = newName;
         }
