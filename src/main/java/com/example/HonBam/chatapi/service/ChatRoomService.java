@@ -52,9 +52,14 @@ public class ChatRoomService {
 
         boolean isDirect = !dto.isOpen() && dto.getParticipantIds() != null && dto.getParticipantIds().size() == 1;
 
+        // 오픈 채팅방은 반드시 이름 지정해야 함
+        if (dto.isOpen() && (dto.getName() == null || dto.getName().isBlank())) {
+            throw new ChatRoomValidationException("오픈 채팅방은 이름을 필수로 입력해야 합니다.");
+        }
+
         ChatRoom room = ChatRoom.builder()
                 .ownerId(requesterId)
-                .name(isDirect ? "1:1 Chat" : dto.getName())
+                .customName(dto.getName() != null && !dto.getName().isBlank() ? dto.getName() : null)
                 .direct(isDirect)
                 .open(dto.isOpen())
                 .allowJoinAll(dto.isOpen() && dto.isAllowJoinAll())
@@ -82,18 +87,14 @@ public class ChatRoomService {
                         .build());
             }
 
-//            if (room.getName() == null || room.getName().isBlank()) {
-//                if (room.isDirect()) {
-//                    String displayName = room.getParticipants().stream()
-//                            .map(r -> !r.getId().equals(requesterId))
-//                }
-//            }
 
             // direct -> group 자동 변환
             long count = chatRoomUserRepository.countByRoom(room);
             if (count >= 3 && room.isDirect()) {
                 room.setDirect(false);
-                room.setName(dto.getName());
+                if (dto.getName() != null && !dto.getName().isBlank()) {
+                    room.setCustomName(dto.getName());
+                }
                 chatRoomRepository.save(room);
             }
             
@@ -101,7 +102,7 @@ public class ChatRoomService {
 
         return ChatRoomResponse.builder()
                 .roomId(room.getRoomUuid())
-                .name(room.getName())
+                .name(resolveDisplayName(room, requesterId))
                 .ownerId(room.getOwnerId())
                 .direct(room.isDirect())
                 .open(room.isOpen())
@@ -110,7 +111,7 @@ public class ChatRoomService {
                 .build();
 
     }
-
+    
     // 기존 채팅방에 유저 초대
     @Transactional
     public void inviteUser(String roomUuid, String requesterId, List<String> targetUserIds) {
@@ -155,7 +156,7 @@ public class ChatRoomService {
         if (cruList.isEmpty()) {
             return Collections.emptyList();
         }
-
+        
         return cruList.stream()
                 .map(cru -> {
                     ChatRoom r = cru.getRoom();
@@ -163,7 +164,7 @@ public class ChatRoomService {
 
                     return ChatRoomListResponseDTO.builder()
                             .roomId(r.getRoomUuid())
-                            .name(r.getName())
+                            .name(resolveDisplayName(r, userInfo.getUserId()))
                             .lastMessage(r.getLastMessage())
                             .lastMessageTime(r.getLastMessageTime())
                             .unReadCount((int) unread)
@@ -172,7 +173,6 @@ public class ChatRoomService {
                             .allowAllJoin(r.isAllowJoinAll())
                             .build();
                 }).collect(Collectors.toList());
-
     }
 
     // 오픈 채팅방 리스트
@@ -188,7 +188,7 @@ public class ChatRoomService {
         return rooms.stream()
                 .map(r -> OpenChatRoomResponseDTO.builder()
                         .roonId(r.getRoomUuid())
-                        .name(r.getName())
+                        .name(r.getCustomName())
                         .participantCount(r.getParticipants().size())
                         .lastMessageTime(r.getLastMessageTime())
                         .open(r.isOpen())
@@ -205,7 +205,7 @@ public class ChatRoomService {
             ChatRoom room = existingRoom.get();
             return ChatRoomResponse.builder()
                     .roomId(room.getRoomUuid())
-                    .name(room.getName())
+                    .name(room.getCustomName())
                     .ownerId(room.getOwnerId())
                     .createdAt(room.getCreatedAt())
                     .build();
@@ -213,7 +213,7 @@ public class ChatRoomService {
 
         // 2. 새로운 채팅방 생성
         ChatRoom newRoom = ChatRoom.builder()
-                .name("1:1 Chat")
+                .customName("1:1 Chat")
                 .ownerId(requesterId)
                 .build();
         chatRoomRepository.save(newRoom);
@@ -228,7 +228,7 @@ public class ChatRoomService {
         return ChatRoomResponse.builder()
                 .roomId(newRoom.getRoomUuid())
                 .ownerId(newRoom.getOwnerId())
-                .name(newRoom.getName())
+                .name(newRoom.getCustomName())
                 .createdAt(newRoom.getCreatedAt())
                 .build();
     }
@@ -262,6 +262,42 @@ public class ChatRoomService {
         }
 
     }
-    
-    
+
+    // 채팅방 이름 가공 메서드
+    private String resolveDisplayName(ChatRoom room, String requesterId) {
+        // 사용자가 지정한 이름이 있으면 그 이름을 우선 사용
+        if (room.getCustomName() != null && !room.getCustomName().isBlank()) {
+            return room.getCustomName();
+        }
+
+        // 오픈 채팅
+        if (room.isOpen()) {
+            return "오픈 채팅방";
+        }
+
+        // 다리렉트 -> 상대방 이름
+        if (room.isDirect()) {
+            return room.getParticipants().stream()
+                    .map(ChatRoomUser::getUser)
+                    .filter(u -> !u.getId().equals(requesterId))
+                    .map(User::getNickname)
+                    .findFirst()
+                    .orElse("1:1 채팅");
+        }
+
+        // 그룹 -> 참여자 전체 이름
+        List<String> names = room.getParticipants().stream()
+                .map(ChatRoomUser::getUser)
+                .filter(u -> !u.getId().equals(requesterId))
+                .map(User::getNickname)
+                .collect(Collectors.toList());
+
+        if (names.size() > 5) {
+            return String.join(", ", names.subList(0, 5)) + " " + names.size();
+        }
+
+        return String.join(", ", names);
+    }
+
+
 }

@@ -24,8 +24,8 @@ public class ChatRoom {
     @Column(name = "room_uuid", nullable = false, unique = true, length = 36)
     private String roomUuid; // 외부 노출용 UUID
 
-    @Column(nullable = false)
-    private String name; // 방 이름
+    @Column(name = "custom_name", nullable = true)
+    private String customName; // 방 이름
 
     @Column(name = "owner_id", nullable = false, length = 36)
     private String ownerId; // 방 생성자 (hb_user.id)
@@ -75,8 +75,8 @@ public class ChatRoom {
     // group 메시지 전환 메서드
     public void convertToGroup(String newName) {
         this.direct = false;
-        if (newName != null) {
-            this.name = newName;
+        if (newName != null && !newName.isBlank()) {
+            this.customName = newName;
         }
     }
 }
