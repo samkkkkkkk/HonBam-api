@@ -21,10 +21,15 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
 
     void deleteByRoomAndUser_Id(ChatRoom room, String userId);
 
-    @Query("select cru from ChatRoomUser cru join fetch cru.room r where cru.user.id = :userId")
-    List<ChatRoomUser> findUsersByUserId(@Param("userId") String userId);
+//    @Query("select cru from ChatRoomUser cru join fetch cru.room r where cru.user.id = :userId")
+//    List<ChatRoomUser> findUsersByUserId(@Param("userId") String userId);
 
-
+    @Query("SELECT DISTINCT cru FROM ChatRoomUser cru " +
+            "JOIN FETCH cru.room r " +
+            "LEFT JOIN FETCH r.participants p " +
+            "LEFT JOIN FETCH p.user " +
+            "WHERE cru.user.id = :userId")
+    List<ChatRoomUser> findUserByUserWithParticipants(@Param("userId") String userId);
 
     @Query("SELECT cru.room FROM ChatRoomUser cru WHERE cru.user.id IN (:userA, :userB) " +
             "GROUP BY cru.room.id  " +

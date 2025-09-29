@@ -151,7 +151,7 @@ public class ChatRoomService {
     
     // 내가 참여중인 방 리스트
     public List<ChatRoomListResponseDTO> roomList(TokenUserInfo userInfo) {
-        List<ChatRoomUser> cruList = chatRoomUserRepository.findUsersByUserId(userInfo.getUserId());
+        List<ChatRoomUser> cruList = chatRoomUserRepository.findUserByUserWithParticipants(userInfo.getUserId());
 
         if (cruList.isEmpty()) {
             return Collections.emptyList();

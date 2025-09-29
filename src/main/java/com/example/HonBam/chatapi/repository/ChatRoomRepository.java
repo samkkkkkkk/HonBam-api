@@ -17,6 +17,6 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     List<ChatRoom> findByOpenTrue();
 
     // 공개 채팅방 + 키워드 검색
-    @Query("SELECT r FROM ChatRoom r WHERE r.open = true AND r.name LIKE CONCAT('%', :keyword, '%')")
+    @Query("SELECT r FROM ChatRoom r WHERE r.open = true AND r.customName LIKE CONCAT('%', :keyword, '%')")
     List<ChatRoom> searchOpenRooms(@Param("keyword") String keyword);
 }
