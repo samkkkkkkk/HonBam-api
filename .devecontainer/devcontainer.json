@@ -1,0 +1,19 @@
+{
+  "name": "HonBam-back Codespace",
+  "image": "mcr.microsoft.com/devcontainers/java:17",
+  "features": {
+    "ghcr.io/devcontainers/features/gradle:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true,
+      "installDockerBuildx": true
+    }
+  },
+  "forwardPorts": [8080, 3306],
+  "postCreateCommand": "chmod +x ./gradlew && ./gradlew build -x test",
+  "remoteUser": "vscode",
+  "runArgs": ["--env-file", ".env.codespace"],
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ]
+}
