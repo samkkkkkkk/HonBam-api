@@ -4,7 +4,7 @@ package com.example.HonBam.chatapi.api;
 
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.chatapi.dto.request.ChatMessageRequest;
-import com.example.HonBam.chatapi.dto.response.ChatMessageResponse;
+import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
 import com.example.HonBam.chatapi.service.ChatMessageService;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
@@ -14,8 +14,6 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
@@ -40,7 +38,7 @@ public class ChatMessageController {
             User sender = userRepository.findById(user.getUserId())
                     .orElseThrow(() -> new RuntimeException("메시지 전송 사용자를 찾을 수 없습니다."));
 
-            ChatMessageResponse response = chatMessageService.saveMessage(
+            ChatMessageResponseDTO response = chatMessageService.saveMessage(
                     request,
                     sender.getId(),
                     sender.getNickname()

@@ -1,13 +1,17 @@
 package com.example.HonBam.chatapi.repository;
 
+import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.ChatRoom;
 import com.example.HonBam.chatapi.entity.ChatRoomUser;
 import com.example.HonBam.userapi.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,5 +45,13 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
     Optional<ChatRoomUser> findByRoomAndUser_Id(@Param("room") ChatRoom room, @Param("userId") String userId);
 
     long countByRoom(ChatRoom room);
+
+    @Query("SELECT COUNT(cru) FROM ChatRoomUser cru " +
+            "WHERE cru.room.id = :roomId " +
+            "AND cru.lastReadTime < :messageTime")
+    long countUnreadUsersForMessage(@Param("roomId") Long roomId,
+                                    @Param("messageTime") LocalDateTime messageTime);
+
+
 
 }

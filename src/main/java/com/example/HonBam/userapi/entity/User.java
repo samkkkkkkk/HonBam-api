@@ -23,7 +23,7 @@ public class User {
     @Id
     @Column(name = "id")
     @GeneratedValue(generator = "system-uuid")
-    @GenericGenerator(name = "system-uuid", strategy = "uuid")
+//    @GenericGenerator(name = "system-uuid", strategy = "uuid")
     private String id; // 계정명이 아니라 식별 코드
 
     @Column(nullable = false, unique = true)
