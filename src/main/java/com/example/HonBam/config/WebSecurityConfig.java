@@ -103,8 +103,7 @@ public class WebSecurityConfig {
         conf.setAllowCredentials(true);
         conf.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
-                "http://127.0.0.1:*",
-                "https://your-frontend.example.com"
+                "http://127.0.0.1:*"
         ));
         conf.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         conf.setAllowedHeaders(Arrays.asList("Content-Type", "Authorization", "X-CSRF-Token"));
