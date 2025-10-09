@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ChatRoomResponse {
-    private String roomId;
+    private String roomUuid;
     private String name;
     private String ownerId;
 

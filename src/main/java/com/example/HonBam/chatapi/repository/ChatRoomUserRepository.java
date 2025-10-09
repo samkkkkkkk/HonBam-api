@@ -53,5 +53,12 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
                                     @Param("messageTime") LocalDateTime messageTime);
 
 
+    @Query(value = "SELECT m.id AS messageId, COUNT(cu.id) AS unreadCount " +
+            "FROM chat_message m " +
+            "JOIN chat_room_user cu ON cu.room.id = m.room.id " +
+            "WHERE m.room.id = :roomId " +
+            "AND cu.last_read_time < m.timestamp " +
+            "GROUP BY m.id", nativeQuery = true)
+    List<Object[]> countUnreadUsersForMessages(@Param("roomId") Long roomId);
 
 }

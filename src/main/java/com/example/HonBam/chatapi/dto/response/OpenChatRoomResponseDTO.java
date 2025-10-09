@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 public class OpenChatRoomResponseDTO {
-    private String roonId;
+    private String roomUuid;
     private String name;
     private int participantCount;
     private LocalDateTime lastMessageTime;

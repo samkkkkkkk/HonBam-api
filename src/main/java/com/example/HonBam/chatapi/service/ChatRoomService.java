@@ -101,7 +101,7 @@ public class ChatRoomService {
         }
 
         return ChatRoomResponse.builder()
-                .roomId(room.getRoomUuid())
+                .roomUuid(room.getRoomUuid())
                 .name(resolveDisplayName(room, requesterId))
                 .ownerId(room.getOwnerId())
                 .direct(room.isDirect())
@@ -163,7 +163,7 @@ public class ChatRoomService {
                     long unread = chatMessageRepository.countUnreadMessages(r.getId(), cru.getLastReadTime());
 
                     return ChatRoomListResponseDTO.builder()
-                            .roomId(r.getRoomUuid())
+                            .roomUuid(r.getRoomUuid())
                             .name(resolveDisplayName(r, userInfo.getUserId()))
                             .lastMessage(r.getLastMessage())
                             .lastMessageTime(r.getLastMessageTime())
@@ -187,7 +187,7 @@ public class ChatRoomService {
         }
         return rooms.stream()
                 .map(r -> OpenChatRoomResponseDTO.builder()
-                        .roonId(r.getRoomUuid())
+                        .roomUuid(r.getRoomUuid())
                         .name(r.getCustomName())
                         .participantCount(r.getParticipants().size())
                         .lastMessageTime(r.getLastMessageTime())
@@ -204,7 +204,7 @@ public class ChatRoomService {
         if (existingRoom.isPresent()) {
             ChatRoom room = existingRoom.get();
             return ChatRoomResponse.builder()
-                    .roomId(room.getRoomUuid())
+                    .roomUuid(room.getRoomUuid())
                     .name(room.getCustomName())
                     .ownerId(room.getOwnerId())
                     .createdAt(room.getCreatedAt())
@@ -226,7 +226,7 @@ public class ChatRoomService {
         chatRoomUserRepository.save(ChatRoomUser.builder().room(newRoom).user(target).build());
 
         return ChatRoomResponse.builder()
-                .roomId(newRoom.getRoomUuid())
+                .roomUuid(newRoom.getRoomUuid())
                 .ownerId(newRoom.getOwnerId())
                 .name(newRoom.getCustomName())
                 .createdAt(newRoom.getCreatedAt())

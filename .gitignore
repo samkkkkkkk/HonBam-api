@@ -21,7 +21,6 @@ honbam_upload/
 .env.development.local
 .env.test.local
 .env.production.local
-.env.codespace
 .env*
 
 npm-debug.log*

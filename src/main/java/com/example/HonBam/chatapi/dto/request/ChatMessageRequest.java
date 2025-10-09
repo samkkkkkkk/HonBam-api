@@ -9,6 +9,6 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class ChatMessageRequest {
-    private String roomId;    // UUID 기반 방 ID
+    private String roomUuid;    // UUID 기반 방 ID
     private String content;   // 메시지 내용
 }
