@@ -7,6 +7,7 @@ import com.example.HonBam.userapi.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -55,10 +56,18 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
 
     @Query(value = "SELECT m.id AS messageId, COUNT(cu.id) AS unreadCount " +
             "FROM chat_message m " +
-            "JOIN chat_room_user cu ON cu.room.id = m.room.id " +
-            "WHERE m.room.id = :roomId " +
-            "AND cu.last_read_time < m.timestamp " +
+            "JOIN chat_room_user cu ON cu.room_id = m.room_id " +
+            "WHERE m.room_id = :roomId " +
+                "AND cu.last_read_time < m.timestamp " +
             "GROUP BY m.id", nativeQuery = true)
     List<Object[]> countUnreadUsersForMessages(@Param("roomId") Long roomId);
+
+    @Modifying
+    @Query("UPDATE ChatRoomUser cru " +
+            "SET cru.lastReadTime = :now " +
+            "WHERE cru.room.roomUuid = :roomUuid AND cru.user.id = :userId")
+    void updateLastReadTime(@Param("roomUuid") String roomUuid,
+                            @Param("userId") String userId,
+                            @Param("now") LocalDateTime now);
 
 }

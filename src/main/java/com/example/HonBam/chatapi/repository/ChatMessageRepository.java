@@ -1,6 +1,7 @@
 package com.example.HonBam.chatapi.repository;
 
 import com.example.HonBam.chatapi.entity.ChatMessage;
+import com.example.HonBam.chatapi.entity.ChatRoom;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -35,4 +36,16 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
             @Param("roomId") Long roomId,
             @Param("limit") int limit,
             @Param("offset") int offset);
+
+    Optional<ChatMessage> findTopByRoomOrderByTimestampDesc(ChatRoom room);
+
+    @Query(value = "SELECT * FROM chat_message " +
+            "WHERE room_id = :roomId " +
+            "AND (:cursorTime IS NULL OR timestamp < :cursorTime) " +
+            "ORDER BY timestamp DESC " +
+            "LIMIT :limit", nativeQuery = true)
+    List<ChatMessage> findMessagesBefore(@Param("roomId") Long roomId,
+                                         @Param("cursorTime") LocalDateTime cursorTime,
+                                         @Param("limit") int limit);
+
 }

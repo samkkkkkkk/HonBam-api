@@ -16,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StopWatch;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,7 +61,7 @@ public class ChatMessageService {
         Page<ChatMessage> messagePage =
                 chatMessageRepository.findByRoomIdOrderByTimestampDesc(roomId, pageable);
 
-        return mapToDTO(messagePage.getContent(), roomId);
+        return mapMessageWithUnreadCount(messagePage.getContent(), roomId);
     }
 
     // Native Query 방식
@@ -67,19 +69,38 @@ public class ChatMessageService {
         int offset = (page - 1) * size;
         List<ChatMessage> messages =
                 chatMessageRepository.findMessageWithPaging(roomId, size, offset);
-        return mapToDTO(messages, roomId);
+        return mapMessageWithUnreadCount(messages, roomId);
     }
 
-    private List<ChatMessageResponseDTO> mapToDTO(List<ChatMessage> messages, Long roomId) {
+    // Cursor Before 방식
+    @Transactional
+    public List<ChatMessageResponseDTO> getMessagesCursor(String roomUuid, LocalDateTime cursorTime, int limit) {
+        ChatRoom room = chatRoomRepository.findByRoomUuid(roomUuid)
+                .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+
+        List<ChatMessage> messages = chatMessageRepository.findMessagesBefore(room.getId(), cursorTime, limit);
+        return mapMessageWithUnreadCount(messages, room.getId());
+    }
+
+    private List<ChatMessageResponseDTO> mapMessageWithUnreadCount(List<ChatMessage> messages, Long roomId) {
+        List<Object[]> unreadResults = chatRoomUserRepository.countUnreadUsersForMessages(roomId);
+        Map<Long, Long> unreadMap = unreadResults.stream()
+                .collect(Collectors.toMap(
+                        row -> ((Number) row[0]).longValue(),
+                        row -> ((Number) row[1]).longValue()
+                ));
+        return convertMessagesWithUnreadMap(messages, unreadMap);
+    }
+
+    private List<ChatMessageResponseDTO> convertMessagesWithUnreadMap(List<ChatMessage> messages, Map<Long, Long> unreadMap) {
         return messages.stream()
                 .map(m -> ChatMessageResponseDTO.builder()
                         .roomUuid(m.getRoom().getRoomUuid())
-                        .senderId(m.getSenderId())
                         .senderName(m.getSenderName())
+                        .senderId(m.getSenderId())
                         .content(m.getContent())
                         .timestamp(m.getTimestamp())
-                        .unReadUserCount((long) chatRoomUserRepository
-                                .countUnreadUsersForMessages(roomId).size())
+                        .unReadUserCount(unreadMap.getOrDefault(m.getId(), 0L))
                         .build())
                 .collect(Collectors.toList());
     }
@@ -104,8 +125,33 @@ public class ChatMessageService {
 
     }
 
-//    @Transactional(readOnly = true)
-//    public List<ChatMessageResponseDTO> getMessagesByRoom(String roomUuid) {
-//        ChatRoom room = chatRoomRepository.findByRoom
-//    }
+    @Transactional(readOnly = true)
+    public List<ChatMessageResponseDTO> getMessagesByRoom(String roomUuid) {
+        ChatRoom room = chatRoomRepository.findByRoomUuid(roomUuid)
+                .orElseThrow(() -> new RuntimeException("해당 채팅방을 찾을 수 없습니다."));
+
+        Long roomId = room.getId();
+
+        // 최근 메시지 50개만 (성능 고려)
+        List<ChatMessage> messages = chatMessageRepository.findMessageWithPaging(roomId, 50, 0);
+
+        // 미읽음 카운트 매핑
+        List<Object[]> unreadResults = chatRoomUserRepository.countUnreadUsersForMessages(roomId);
+        Map<Long, Long> unreadMap = unreadResults.stream()
+                .collect(Collectors.toMap(
+                        row -> ((Number) row[0]).longValue(),
+                        row -> ((Number) row[1]).longValue()
+                ));
+
+        return messages.stream()
+                .map(m -> ChatMessageResponseDTO.builder()
+                        .roomUuid(roomUuid)
+                        .senderId(m.getSenderId())
+                        .senderName(m.getSenderName())
+                        .content(m.getContent())
+                        .timestamp(m.getTimestamp())
+                        .unReadUserCount(unreadMap.getOrDefault(m.getId(), 0L))
+                        .build())
+                .collect(Collectors.toList());
+    }
 }

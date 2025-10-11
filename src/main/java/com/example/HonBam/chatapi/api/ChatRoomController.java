@@ -6,12 +6,15 @@ import com.example.HonBam.chatapi.dto.request.InviteUserRequest;
 import com.example.HonBam.chatapi.dto.response.ChatRoomListResponseDTO;
 import com.example.HonBam.chatapi.dto.response.ChatRoomResponse;
 import com.example.HonBam.chatapi.dto.response.OpenChatRoomResponseDTO;
+import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.chatapi.service.ChatRoomService;
+import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -34,7 +37,7 @@ public class ChatRoomController {
     public ResponseEntity<?> chatRoomList(
             @AuthenticationPrincipal TokenUserInfo userInfo
     ) {
-        List<ChatRoomListResponseDTO> chatRoomList = chatRoomService.roomList(userInfo);
+        List<ChatRoomListResponseDTO> chatRoomList = chatRoomService.roomList(userInfo.getUserId());
         return ResponseEntity.ok().body(chatRoomList);
     }
 
@@ -74,5 +77,14 @@ public class ChatRoomController {
     public ResponseEntity<List<OpenChatRoomResponseDTO>> openChatRoomList(@RequestParam(required = false) String keyword) {
         List<OpenChatRoomResponseDTO> rooms = chatRoomService.findOpenRooms(keyword);
         return ResponseEntity.ok(rooms);
+    }
+
+    @PostMapping("/read")
+    public ResponseEntity<?> updateLsatReadTime(
+            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @RequestParam String roomUuid
+    ) {
+        chatRoomService.updateLastReadTime(roomUuid, userInfo.getUserId());
+        return ResponseEntity.ok().build();
     }
 }

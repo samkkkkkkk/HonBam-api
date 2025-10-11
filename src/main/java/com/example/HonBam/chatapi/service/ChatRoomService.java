@@ -5,6 +5,7 @@ import com.example.HonBam.chatapi.dto.request.CreateRoomRequest;
 import com.example.HonBam.chatapi.dto.response.ChatRoomListResponseDTO;
 import com.example.HonBam.chatapi.dto.response.ChatRoomResponse;
 import com.example.HonBam.chatapi.dto.response.OpenChatRoomResponseDTO;
+import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.ChatRoom;
 import com.example.HonBam.chatapi.entity.ChatRoomUser;
 import com.example.HonBam.chatapi.repository.ChatMessageRepository;
@@ -22,10 +23,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static java.util.Comparator.*;
 
 @Service
 @RequiredArgsConstructor
@@ -149,30 +154,71 @@ public class ChatRoomService {
 
     }
     
-    // 내가 참여중인 방 리스트
-    public List<ChatRoomListResponseDTO> roomList(TokenUserInfo userInfo) {
-        List<ChatRoomUser> cruList = chatRoomUserRepository.findUserByUserWithParticipants(userInfo.getUserId());
+//    // 내가 참여중인 방 리스트
+//    public List<ChatRoomListResponseDTO> roomList(TokenUserInfo userInfo) {
+//        List<ChatRoomUser> cruList = chatRoomUserRepository.findUserByUserWithParticipants(userInfo.getUserId());
+//
+//        if (cruList.isEmpty()) {
+//            return Collections.emptyList();
+//        }
+//
+//        return cruList.stream()
+//                .map(cru -> {
+//                    ChatRoom r = cru.getRoom();
+//                    long unread = chatMessageRepository.countUnreadMessages(r.getId(), cru.getLastReadTime());
+//
+//                    return ChatRoomListResponseDTO.builder()
+//                            .roomUuid(r.getRoomUuid())
+//                            .customName(resolveDisplayName(r, userInfo.getUserId()))
+//                            .lastMessage(r.getLastMessage())
+//                            .lastMessageTime(r.getLastMessageTime())
+//                            .unReadCount(unread)
+//                            .open(r.isOpen())
+//                            .direct(r.isDirect())
+//                            .allowJoinAll(r.isAllowJoinAll())
+//                            .build();
+//                }).collect(Collectors.toList());
+//    }
 
-        if (cruList.isEmpty()) {
-            return Collections.emptyList();
-        }
-        
-        return cruList.stream()
-                .map(cru -> {
-                    ChatRoom r = cru.getRoom();
-                    long unread = chatMessageRepository.countUnreadMessages(r.getId(), cru.getLastReadTime());
+    // 내가 참여중인 방 리스트
+    public List<ChatRoomListResponseDTO> roomList(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        List<ChatRoomUser> joinedRooms = chatRoomUserRepository.findUserByUserWithParticipants(userId);
+
+        return joinedRooms.stream()
+                .map(roomUser -> {
+                    ChatRoom room = roomUser.getRoom();
+
+                    // 마지막 메시지
+                    ChatMessage lastMessage = chatMessageRepository
+                            .findTopByRoomOrderByTimestampDesc(room)
+                            .orElse(null);
+
+                    // 읽지 않은 메시지 수
+                    LocalDateTime lastReadTime = roomUser.getLastReadTime();
+                    long unreadCount = (lastReadTime != null)
+                            ? chatMessageRepository.countUnreadMessages(room.getId(), lastReadTime)
+                            : chatMessageRepository.findByRoomId(room.getId()).size();
 
                     return ChatRoomListResponseDTO.builder()
-                            .roomUuid(r.getRoomUuid())
-                            .name(resolveDisplayName(r, userInfo.getUserId()))
-                            .lastMessage(r.getLastMessage())
-                            .lastMessageTime(r.getLastMessageTime())
-                            .unReadCount((int) unread)
-                            .open(r.isOpen())
-                            .direct(r.isDirect())
-                            .allowAllJoin(r.isAllowJoinAll())
+                            .roomUuid(room.getRoomUuid())
+                            .customName(room.getCustomName())
+                            .ownerId(room.getOwnerId())
+                            .open(room.isOpen())
+                            .direct(room.isDirect())
+                            .allowJoinAll(room.isAllowJoinAll())
+                            .lastMessage(lastMessage != null ? lastMessage.getContent() : null)
+                            .lastMessageTime(lastMessage != null ? lastMessage.getTimestamp() : null)
+                            .unReadCount(unreadCount)
                             .build();
-                }).collect(Collectors.toList());
+                })
+                .sorted(comparing(
+                        (ChatRoomListResponseDTO r) ->
+                                Optional.ofNullable(r.getLastMessageTime()).orElse(LocalDateTime.MIN),
+                        reverseOrder()))
+                .collect(Collectors.toList());
     }
 
     // 오픈 채팅방 리스트
@@ -300,4 +346,8 @@ public class ChatRoomService {
     }
 
 
+    @Transactional
+    public void updateLastReadTime(String roomUuid, String userId) {
+        chatRoomUserRepository.updateLastReadTime(roomUuid, userId, LocalDateTime.now());
+    }
 }

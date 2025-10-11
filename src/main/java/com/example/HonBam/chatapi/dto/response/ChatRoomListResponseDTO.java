@@ -14,10 +14,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ChatRoomListResponseDTO {
     private String roomUuid;
-    private String name;
+    private String customName;
+    private String ownerId;
     private String lastMessage;
     private LocalDateTime lastMessageTime;
-    int unReadCount;
+    long unReadCount;
 
     @JsonProperty("isDirect")
     private boolean direct;
@@ -25,6 +26,6 @@ public class ChatRoomListResponseDTO {
     @JsonProperty("isOpen")
     private boolean open;
 
-    private boolean allowAllJoin;
+    private boolean allowJoinAll;
 
 }
