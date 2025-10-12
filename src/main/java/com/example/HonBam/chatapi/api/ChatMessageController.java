@@ -70,7 +70,7 @@ public class ChatMessageController {
             Principal principal
     ) {
         LocalDateTime cursorTime = null;
-        if (cursor != null & !cursor.isBlank()) {
+        if (cursor != null && !cursor.isBlank()) {
             cursorTime = LocalDateTime.parse(cursor);
         }
 
@@ -78,7 +78,7 @@ public class ChatMessageController {
         return ResponseEntity.ok(messages);
     }
 
-    @MessageMapping("/send")
+    @MessageMapping("/chat/send")
     public void sendMessage(@Payload ChatMessageRequest request,
                             Principal principal) {
 

@@ -45,8 +45,10 @@ public class ChatMessageService {
                 .build();
 
         ChatMessage saved = chatMessageRepository.save(message);
+        log.info("메시지 저장: {}", message);
 
         return ChatMessageResponseDTO.builder()
+                .id(room.getId())
                 .roomUuid(room.getRoomUuid())  // UUID 반환
                 .senderId(saved.getSenderId())
                 .senderName(saved.getSenderName())
@@ -95,6 +97,7 @@ public class ChatMessageService {
     private List<ChatMessageResponseDTO> convertMessagesWithUnreadMap(List<ChatMessage> messages, Map<Long, Long> unreadMap) {
         return messages.stream()
                 .map(m -> ChatMessageResponseDTO.builder()
+                        .id(m.getId())
                         .roomUuid(m.getRoom().getRoomUuid())
                         .senderName(m.getSenderName())
                         .senderId(m.getSenderId())
@@ -145,6 +148,7 @@ public class ChatMessageService {
 
         return messages.stream()
                 .map(m -> ChatMessageResponseDTO.builder()
+                        .id(m.getId())
                         .roomUuid(roomUuid)
                         .senderId(m.getSenderId())
                         .senderName(m.getSenderName())

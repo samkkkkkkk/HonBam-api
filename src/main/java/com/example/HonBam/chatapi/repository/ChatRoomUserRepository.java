@@ -47,27 +47,40 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
 
     long countByRoom(ChatRoom room);
 
-    @Query("SELECT COUNT(cru) FROM ChatRoomUser cru " +
-            "WHERE cru.room.id = :roomId " +
-            "AND cru.lastReadTime < :messageTime")
-    long countUnreadUsersForMessage(@Param("roomId") Long roomId,
-                                    @Param("messageTime") LocalDateTime messageTime);
+    @Query(value = "SELECT COUNT(cu.id) " +
+            "FROM chat_room_user cu " +
+            "WHERE cu.room_id = :roomId " +
+            "AND (cu.last_read_message_id IS NULL OR cu.last_read_message_id < :messageId " +
+            "AND cu.user_id != :senderId", nativeQuery = true)
+    long countUnreadUsersForMessage(@Param("roomId") Long roomId, @Param("messageId") Long messageId, @Param("senderId") String senderId);
 
+
+
+
+//    @Query(value = "SELECT m.id AS messageId, COUNT(cu.id) AS unreadCount " +
+//            "FROM chat_message m " +
+//            "JOIN chat_room_user cu ON cu.room_id = m.room_id " +
+//            "WHERE m.room_id = :roomId " +
+//                "AND (cu.last_read_time IS NULL OR cu.last_read_time < m.timestamp) " +
+//            "AND cu.user_id != m.sender_id " +
+//            "GROUP BY m.id", nativeQuery = true)
+//    List<Object[]> countUnreadUsersForMessages(@Param("roomId") Long roomId);
 
     @Query(value = "SELECT m.id AS messageId, COUNT(cu.id) AS unreadCount " +
             "FROM chat_message m " +
             "JOIN chat_room_user cu ON cu.room_id = m.room_id " +
             "WHERE m.room_id = :roomId " +
-                "AND cu.last_read_time < m.timestamp " +
+            "AND (cu.last_read_message_id IS NULL OR cu.last_read_message_id < m.id) " +
+            "AND cu.user_id != m.sender_id " +
             "GROUP BY m.id", nativeQuery = true)
     List<Object[]> countUnreadUsersForMessages(@Param("roomId") Long roomId);
 
     @Modifying
     @Query("UPDATE ChatRoomUser cru " +
-            "SET cru.lastReadTime = :now " +
+            "SET cru.lastReadMessageId = :messageId " +
             "WHERE cru.room.roomUuid = :roomUuid AND cru.user.id = :userId")
-    void updateLastReadTime(@Param("roomUuid") String roomUuid,
+    void updateLastReadMessageId(@Param("roomUuid") String roomUuid,
                             @Param("userId") String userId,
-                            @Param("now") LocalDateTime now);
+                            @Param("messageId") Long messageId);
 
 }

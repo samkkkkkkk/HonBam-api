@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ChatMessageResponseDTO {
+    private Long id;
     private String roomUuid;    // UUID만 노출
     private String senderId;
     private String senderName;

@@ -29,14 +29,11 @@ public class ChatRoomUser {
 
     private LocalDateTime joinedAt;
 
-    @Column(name = "last_read_time")
-    private LocalDateTime lastReadTime;
+    @Column(name = "last_read_message_id")
+    private Long lastReadMessageId;
 
     @PrePersist
     public void prePersist() {
         this.joinedAt = LocalDateTime.now();
-        if (this.lastReadTime == null) {
-            this.lastReadTime = this.joinedAt;
-        }
     }
 }

@@ -1,6 +1,5 @@
 package com.example.HonBam.chatapi.service;
 
-import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.chatapi.dto.request.CreateRoomRequest;
 import com.example.HonBam.chatapi.dto.response.ChatRoomListResponseDTO;
 import com.example.HonBam.chatapi.dto.response.ChatRoomResponse;
@@ -20,17 +19,19 @@ import com.example.HonBam.userapi.repository.UserRepository;
 import com.example.HonBam.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static java.util.Comparator.*;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.reverseOrder;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +42,8 @@ public class ChatRoomService {
     private final ChatRoomUserRepository chatRoomUserRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
     private final UserUtil userUtil;
 
     public ChatRoom findByRoomUuid(String uuid) {
@@ -197,10 +200,10 @@ public class ChatRoomService {
                             .orElse(null);
 
                     // 읽지 않은 메시지 수
-                    LocalDateTime lastReadTime = roomUser.getLastReadTime();
-                    long unreadCount = (lastReadTime != null)
-                            ? chatMessageRepository.countUnreadMessages(room.getId(), lastReadTime)
-                            : chatMessageRepository.findByRoomId(room.getId()).size();
+                    Long lastReadMessageId = roomUser.getLastReadMessageId();
+                    long unreadCount = (lastReadMessageId != null)
+                            ? chatMessageRepository.countUnreadMessages(room.getId(), lastReadMessageId)
+                            : chatMessageRepository.countByRoomId(room.getId());
 
                     return ChatRoomListResponseDTO.builder()
                             .roomUuid(room.getRoomUuid())
@@ -347,7 +350,35 @@ public class ChatRoomService {
 
 
     @Transactional
-    public void updateLastReadTime(String roomUuid, String userId) {
-        chatRoomUserRepository.updateLastReadTime(roomUuid, userId, LocalDateTime.now());
+    public void updateLastMessage(String roomUuid, String userId, Long messageId) {
+        chatRoomUserRepository.updateLastReadMessageId(roomUuid, userId, messageId);
+
+        ChatRoom room = chatRoomRepository.findByRoomUuid(roomUuid)
+                .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+
+        ChatMessage message = chatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("메시지를 찾을 수 없습니다."));
+
+        long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(
+                room.getId(), messageId, message.getSenderId());
+
+        // Redis Pub/Sub 발행 (모든 서버가 동일한 이벤트 인식)
+        Map<String, Object> payload = Map.of(
+                "roomUuid", roomUuid,
+                "messageId", messageId,
+                "unReadUserCount", unreadCount
+        );
+        redisTemplate.convertAndSend("chat:read:event", payload);
+
+        log.info("[READ EVENT PUBLISH] room={}, messageId={}, unread={}",
+                roomUuid, messageId, unreadCount);
+
+        // RabbitMQ Stomp 브로커 즉시 발행 (현재 서버 내 연결된 유저 즉시 갱신)
+        messagingTemplate.convertAndSend(
+                "/topic/chat.room." + roomUuid + ".read",
+                payload
+        );
+
+        log.info("[READ EVENT BROADCAST] -> STOMP /topic/chat.room.{}.read", roomUuid);
     }
 }

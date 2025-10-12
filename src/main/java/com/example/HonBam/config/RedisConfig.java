@@ -1,5 +1,6 @@
 package com.example.HonBam.config;
 
+import com.example.HonBam.chatapi.listener.ChatEventSubscriber;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -7,12 +8,16 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.PatternTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
 @RequiredArgsConstructor
 public class RedisConfig {
+
+    private final ChatEventSubscriber chatEventSubscriber;
 
     @Value("${spring.data.redis.host}")
     private String host;
@@ -38,6 +43,16 @@ public class RedisConfig {
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         return template;
+    }
+
+    // Redis Pub/Sub Listener 등록
+    @Bean
+    public RedisMessageListenerContainer rediscontainer(RedisConnectionFactory connectionFactory) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        // 읽음 이벤트 리스너 등록
+        container.addMessageListener(chatEventSubscriber, new PatternTopic("chat:read:event"));
+        return container;
     }
 
 

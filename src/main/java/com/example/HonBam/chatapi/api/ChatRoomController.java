@@ -80,11 +80,12 @@ public class ChatRoomController {
     }
 
     @PostMapping("/read")
-    public ResponseEntity<?> updateLsatReadTime(
+    public ResponseEntity<?> updateReadMessage(
             @AuthenticationPrincipal TokenUserInfo userInfo,
-            @RequestParam String roomUuid
+            @RequestParam String roomUuid,
+            @RequestParam Long messageId
     ) {
-        chatRoomService.updateLastReadTime(roomUuid, userInfo.getUserId());
+        chatRoomService.updateLastMessage(roomUuid, userInfo.getUserId(), messageId);
         return ResponseEntity.ok().build();
     }
 }
