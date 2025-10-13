@@ -11,9 +11,11 @@ import com.example.HonBam.chatapi.service.ChatRoomService;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -39,6 +41,23 @@ public class ChatRoomController {
     ) {
         List<ChatRoomListResponseDTO> chatRoomList = chatRoomService.roomList(userInfo.getUserId());
         return ResponseEntity.ok().body(chatRoomList);
+    }
+
+    // 채팅방 입장
+    @PostMapping("/join")
+    public ResponseEntity<?> joinRoomOnEnter(
+            @RequestParam("roomUuid") String roomUuid,
+            Principal principal
+    ) {
+        if (!(principal instanceof UsernamePasswordAuthenticationToken)) {
+            return ResponseEntity.status(401).body("인증되지 않은 사용자입니다.");
+        }
+
+        TokenUserInfo user = (TokenUserInfo)
+                ((UsernamePasswordAuthenticationToken) principal).getPrincipal();
+
+        chatRoomService.markAllAsReadOnJoin(roomUuid, user.getUserId());
+        return ResponseEntity.ok().build();
     }
 
     // 1대1 채팅 시작

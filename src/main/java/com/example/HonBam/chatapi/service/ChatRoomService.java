@@ -389,4 +389,40 @@ public class ChatRoomService {
 
         log.info("[READ EVENT BROADCAST] -> STOMP /topic/chat.room.{}.read", roomUuid);
     }
+
+    @Transactional
+    public void markAllAsReadOnJoin(String roomUuid, String userId) {
+        log.info("[JOIN READ] room={}, user={}", roomUuid, userId);
+
+        ChatRoom room = chatRoomRepository.findByRoomUuid(roomUuid)
+                .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+
+        // 마지막 메시지 가져오기
+        ChatMessage lastMessage = chatMessageRepository
+                .findTopByRoomOrderByTimestampDesc(room)
+                .orElse(null);
+
+        // 방에 메시지가 없으면 스킵
+        if (lastMessage == null) {
+            log.info("[JOIN READ] 메시지 없음 -> 스킵");
+            return;
+        }
+
+        // 마지막 메시지를 읽은 것으로 표시
+        chatRoomUserRepository.updateLastReadMessageId(room.getId(), userId, lastMessage.getId());
+
+        // 읽지 않은 인원 수 계산
+        long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(
+                room.getId(), lastMessage.getId(), lastMessage.getSenderId()
+        );
+
+        // 이벤트 DTO 생성
+        ChatReadEvent event = new ChatReadEvent(roomUuid, lastMessage.getId(), unreadCount);
+
+        // Redis Pub/Sub + stomp 브로드 캐스트
+        redisTemplate.convertAndSend("chat:read:event", event);
+        messagingTemplate.convertAndSend("/topic/chat.room." + roomUuid + ".read", event);
+
+        log.info("[JOIN READ EVENT] room={}, messageID={}, unread={}", roomUuid, lastMessage.getId(), unreadCount);
+    }
 }
