@@ -97,7 +97,7 @@ public class ChatMessageController {
                     sender.getNickname()
             );
 
-            messagingTemplate.convertAndSend("/topic/room." + request.getRoomUuid(), response);
+            messagingTemplate.convertAndSend("/topic/chat.room." + request.getRoomUuid(), response);
         } else {
             log.warn("메시지 전송: 인증된 사용자 아님");
         }

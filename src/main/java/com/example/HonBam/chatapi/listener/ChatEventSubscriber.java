@@ -1,8 +1,11 @@
 package com.example.HonBam.chatapi.listener;
 
+import com.example.HonBam.chatapi.dto.ChatReadEvent;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -16,27 +19,25 @@ import java.util.Map;
 @Slf4j
 public class ChatEventSubscriber implements MessageListener {
 
+    @Lazy
     private final SimpMessagingTemplate messagingTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
         try {
             String json = new String(message.getBody(), StandardCharsets.UTF_8);
-            Map<String, Object> payload = objectMapper.readValue(json, Map.class);
-
-            String roomUuid = (String) payload.get("roomUuid");
-            Long messageId = ((Number) payload.get("messageId")).longValue();
-            Long unread = ((Number) payload.get("unReadUserCount")).longValue();
-
+            ChatReadEvent event = objectMapper.readValue(json, ChatReadEvent.class);
             // 다른 서버에서도 RabbitMQ STOMP 브로커로 동일하게 브로드캐스트
             messagingTemplate.convertAndSend(
-                    "/topic/chat.room." + roomUuid + ".read",
-                    payload
+                    "/topic/chat.room." + event.getRoomUuid() + ".read",
+                    event
             );
 
-            log.info("[READ EVENT SYNC] room={}, msgId={}, unread={}", roomUuid, messageId, unread);
+            log.info("[READ EVENT SYNC] room={}, msgId={}, unread={}", event.getRoomUuid(), event.getMessageId(), event.getUnReadUserCount());
 
         } catch (Exception e) {
             log.error("[READ EVENT SYNC ERROR] Redis 메시지 처리 실패", e);

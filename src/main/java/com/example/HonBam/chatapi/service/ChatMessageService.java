@@ -47,13 +47,21 @@ public class ChatMessageService {
         ChatMessage saved = chatMessageRepository.save(message);
         log.info("메시지 저장: {}", message);
 
+        // 안 읽은 메시지 수 계산
+        long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(
+                room.getId(),
+                saved.getId(),
+                saved.getSenderId()
+        );
+
         return ChatMessageResponseDTO.builder()
-                .id(room.getId())
+                .id(saved.getId())
                 .roomUuid(room.getRoomUuid())  // UUID 반환
                 .senderId(saved.getSenderId())
                 .senderName(saved.getSenderName())
                 .content(saved.getContent())
                 .timestamp(saved.getTimestamp())
+                .unReadUserCount(unreadCount)
                 .build();
     }
 

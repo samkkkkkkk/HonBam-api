@@ -1,5 +1,6 @@
 package com.example.HonBam.chatapi.service;
 
+import com.example.HonBam.chatapi.dto.ChatReadEvent;
 import com.example.HonBam.chatapi.dto.request.CreateRoomRequest;
 import com.example.HonBam.chatapi.dto.response.ChatRoomListResponseDTO;
 import com.example.HonBam.chatapi.dto.response.ChatRoomResponse;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -351,7 +353,8 @@ public class ChatRoomService {
 
     @Transactional
     public void updateLastMessage(String roomUuid, String userId, Long messageId) {
-        chatRoomUserRepository.updateLastReadMessageId(roomUuid, userId, messageId);
+
+        log.debug("[updateLastReadMessageId] roomUuid={}, userId={}, messageId={}", roomUuid, userId, messageId);
 
         ChatRoom room = chatRoomRepository.findByRoomUuid(roomUuid)
                 .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
@@ -359,16 +362,21 @@ public class ChatRoomService {
         ChatMessage message = chatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new RuntimeException("메시지를 찾을 수 없습니다."));
 
+        chatRoomUserRepository.updateLastReadMessageId(room.getId(), userId, messageId);
+
         long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(
                 room.getId(), messageId, message.getSenderId());
 
         // Redis Pub/Sub 발행 (모든 서버가 동일한 이벤트 인식)
-        Map<String, Object> payload = Map.of(
-                "roomUuid", roomUuid,
-                "messageId", messageId,
-                "unReadUserCount", unreadCount
-        );
-        redisTemplate.convertAndSend("chat:read:event", payload);
+//        Map<String, Object> payload = Map.of(
+//                "roomUuid", roomUuid,
+//                "messageId", messageId,
+//                "unReadUserCount", unreadCount
+//        );
+
+        ChatReadEvent event = new ChatReadEvent(roomUuid, messageId, unreadCount);
+
+        redisTemplate.convertAndSend("chat:read:event", event);
 
         log.info("[READ EVENT PUBLISH] room={}, messageId={}, unread={}",
                 roomUuid, messageId, unreadCount);
@@ -376,7 +384,7 @@ public class ChatRoomService {
         // RabbitMQ Stomp 브로커 즉시 발행 (현재 서버 내 연결된 유저 즉시 갱신)
         messagingTemplate.convertAndSend(
                 "/topic/chat.room." + roomUuid + ".read",
-                payload
+                event
         );
 
         log.info("[READ EVENT BROADCAST] -> STOMP /topic/chat.room.{}.read", roomUuid);

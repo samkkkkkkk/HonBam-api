@@ -50,7 +50,7 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
     @Query(value = "SELECT COUNT(cu.id) " +
             "FROM chat_room_user cu " +
             "WHERE cu.room_id = :roomId " +
-            "AND (cu.last_read_message_id IS NULL OR cu.last_read_message_id < :messageId " +
+            "AND (cu.last_read_message_id IS NULL OR cu.last_read_message_id < :messageId) " +
             "AND cu.user_id != :senderId", nativeQuery = true)
     long countUnreadUsersForMessage(@Param("roomId") Long roomId, @Param("messageId") Long messageId, @Param("senderId") String senderId);
 
@@ -78,8 +78,8 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
     @Modifying
     @Query("UPDATE ChatRoomUser cru " +
             "SET cru.lastReadMessageId = :messageId " +
-            "WHERE cru.room.roomUuid = :roomUuid AND cru.user.id = :userId")
-    void updateLastReadMessageId(@Param("roomUuid") String roomUuid,
+            "WHERE cru.room.id = :roomId AND cru.user.id = :userId")
+    void updateLastReadMessageId(@Param("roomId") Long roomId,
                             @Param("userId") String userId,
                             @Param("messageId") Long messageId);
 

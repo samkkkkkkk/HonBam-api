@@ -17,8 +17,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @RequiredArgsConstructor
 public class RedisConfig {
 
-    private final ChatEventSubscriber chatEventSubscriber;
-
     @Value("${spring.data.redis.host}")
     private String host;
 
@@ -47,13 +45,14 @@ public class RedisConfig {
 
     // Redis Pub/Sub Listener 등록
     @Bean
-    public RedisMessageListenerContainer rediscontainer(RedisConnectionFactory connectionFactory) {
+    public RedisMessageListenerContainer rediscontainer(
+                        RedisConnectionFactory connectionFactory,
+                        ChatEventSubscriber chatEventSubscriber) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         // 읽음 이벤트 리스너 등록
         container.addMessageListener(chatEventSubscriber, new PatternTopic("chat:read:event"));
         return container;
     }
-
 
 }

@@ -2,6 +2,7 @@ package com.example.HonBam.config;
 
 import com.example.HonBam.auth.TokenProvider;
 import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.interceptor.StompAuthInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -28,11 +29,11 @@ import java.util.Collections;
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final TokenProvider tokenProvider;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StompAuthInterceptor stompAuthInterceptor;
 
-    public WebSocketConfig(TokenProvider tokenProvider, RedisTemplate<String, Object> redisTemplate) {
+    public WebSocketConfig(TokenProvider tokenProvider, StompAuthInterceptor stompAuthInterceptor) {
         this.tokenProvider = tokenProvider;
-        this.redisTemplate = redisTemplate;
+        this.stompAuthInterceptor = stompAuthInterceptor;
     }
 
     @Value("${app.rabbitmq.stomp.host}")
@@ -71,49 +72,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
         registry.setApplicationDestinationPrefixes("/app");
     }
+
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(new ChannelInterceptor() {
-            @Override
-            public Message<?> preSend(Message<?> message, MessageChannel channel) {
-                StompHeaderAccessor accessor =
-                        MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-
-                if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                    // 클라이언트가 보낸 헤더에서 ticket 추출
-                    String ticket = accessor.getFirstNativeHeader("ticket");
-
-                    if (ticket != null) {
-                        String key = "ws:ticket:" + ticket;
-                        Object userId = redisTemplate.opsForValue().get(key);
-
-                        if (userId != null) {
-                            // 티켓은 일회성이므로 즉시 제거
-                            redisTemplate.delete(key);
-
-                            TokenUserInfo userInfo = new TokenUserInfo(userId.toString(), null);
-
-                            UsernamePasswordAuthenticationToken authentication =
-                                    new UsernamePasswordAuthenticationToken(
-                                            userInfo, null,
-                                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                                    );
-                            accessor.setUser(authentication);
-
-                            log.info("STOMP CONNECT 인증 성공: {}", userId);
-                        } else {
-                            log.warn("STOMP CONNECT: 유효하지 않은 티켓 {}", ticket);
-                            throw new SecurityException("Invalid or expired ticket");
-                        }
-                    } else {
-                        log.warn("STOMP CONNECT: 티켓 없음");
-                        throw new SecurityException("No ticket provided");
-                    }
-                }
-
-                return message;
-            }
-        });
+        registration.interceptors(stompAuthInterceptor);
     }
-
 }
