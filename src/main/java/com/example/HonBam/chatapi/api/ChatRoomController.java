@@ -81,15 +81,15 @@ public class ChatRoomController {
         return ResponseEntity.ok("초대 성공");
     }
 
-    // 자유입장 방식
-    @PostMapping("/{roomId}/join")
-    public ResponseEntity<?> joinOpenRoom(
-            @AuthenticationPrincipal TokenUserInfo userInfo,
-            @PathVariable String roomUuid
-    ) {
-        chatRoomService.joinOpenRoom(roomUuid, userInfo.getUserId());
-        return ResponseEntity.ok("참여완료");
-    }
+//    // 자유입장 방식
+//    @PostMapping("/{roomId}/join")
+//    public ResponseEntity<?> joinOpenRoom(
+//            @AuthenticationPrincipal TokenUserInfo userInfo,
+//            @PathVariable String roomUuid
+//    ) {
+//        chatRoomService.joinOpenRoom(roomUuid, userInfo.getUserId());
+//        return ResponseEntity.ok("참여완료");
+//    }
 
     // 오픈 채팅방 리스트
     @GetMapping("/open")

@@ -13,4 +13,5 @@ public class ChatReadEvent {
     private String roomUuid;
     private Long messageId;
     private Long unReadUserCount;
+    private String readerId;
 }

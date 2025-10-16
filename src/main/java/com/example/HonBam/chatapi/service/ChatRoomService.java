@@ -458,6 +458,8 @@ public class ChatRoomService {
         User reader = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("읽음 처리 대상 사용자를 찾을 수 없습니다."));
 
+        // lastReadMessageId 갱신
+        chatRoomUserRepository.updateLastReadMessageIdIfNewer(room.getId(), userId, messageId);
         // Redis 캐싱
         String redisKey = "chat:read:" + room.getId();
         redisTemplate.opsForHash().put(redisKey, userId, messageId);

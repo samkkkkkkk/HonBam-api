@@ -83,4 +83,10 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
                             @Param("userId") String userId,
                             @Param("messageId") Long messageId);
 
+    @Query("UPDATE ChatRoomUser cru " +
+            "SET cru.lastReadMessageId = :messageId " +
+            "WHERE cru.room.id = :roomId " +
+            "AND cru.user.id = :userId " +
+            "AND (cru.lastReadMessageId IS NULL OR cru.lastReadMessageId < :messageId")
+    void updateLastReadMessageIdIfNewer(@Param("roomId") Long roomId, @Param("userId") String userId, @Param("messageId") Long messageId);
 }
