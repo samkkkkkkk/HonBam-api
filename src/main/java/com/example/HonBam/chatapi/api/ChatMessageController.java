@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -97,7 +98,12 @@ public class ChatMessageController {
                     sender.getNickname()
             );
 
-            messagingTemplate.convertAndSend("/topic/chat.room." + request.getRoomUuid(), response);
+            Map<String, Object> payload = Map.of(
+                    "type", "MESSAGE",
+                    "body", response
+            );
+
+            messagingTemplate.convertAndSend("/topic/chat.room." + request.getRoomUuid(), payload);
         } else {
             log.warn("메시지 전송: 인증된 사용자 아님");
         }

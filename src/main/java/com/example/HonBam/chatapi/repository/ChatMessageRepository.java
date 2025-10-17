@@ -52,4 +52,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
                                          @Param("cursorTime") LocalDateTime cursorTime,
                                          @Param("limit") int limit);
 
+    @Query("SELECT m.id from ChatMessage m WHERE m.room.id = :roomId AND m.id <= :lastId")
+    List<Long> findIdsByRoomAndIdLessThanEqual(@Param("roomId") Long roomId, @Param("lastId") Long lastId);
+
 }

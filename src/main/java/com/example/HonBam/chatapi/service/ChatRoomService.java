@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -410,26 +411,34 @@ public class ChatRoomService {
         }
 
         // 마지막 메시지를 읽은 것으로 표시
-        chatRoomUserRepository.updateLastReadMessageId(room.getId(), userId, lastMessage.getId());
+        chatRoomUserRepository.updateLastReadMessageIdIfNewer(room.getId(), userId, lastMessage.getId());
 
         // Redis 갱신
         redisTemplate.opsForHash().put("chat:read:" + room.getId(), userId, lastMessage.getId());
 
         // DB 기록 (소규모 방은 즉시, 대규모는 flush)
         long participantCount = chatRoomUserRepository.countByRoom(room);
+        User reader = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("읽음 처리 대상자를 찾을 수 없습니다."));
+
         if (participantCount <= 10) {
-            ChatReadId id = new ChatReadId(lastMessage.getId(), userId);
-            if (!chatReadRepository.existsById(id)) {
-                ChatRead read = ChatRead.builder()
-                        .id(id)
-                        .message(lastMessage)
-                        .user(userRepository.getReferenceById(userId))
-                        .build();
-                chatReadRepository.save(read);
+
+            List<Long> messageIds = chatMessageRepository.findIdsByRoomAndIdLessThanEqual(room.getId(), lastMessage.getId());
+            for (Long messageId : messageIds) {
+                ChatReadId id = new ChatReadId(messageId, userId);
+                if (!chatReadRepository.existsById(id)) {
+                    ChatRead read = ChatRead.builder()
+                            .id(id)
+                            .message(chatMessageRepository.findById(messageId)
+                                    .orElseThrow(() -> new RuntimeException("메시지가 존재하지 않습니다.")))
+                            .user(reader)
+                            .build();
+                    chatReadRepository.save(read);
+                }
             }
         } else {
-            String tempkey = "chat:read:temp:" + room.getId() + ":" + userId;
-            redisTemplate.opsForSet().add(tempkey, lastMessage.getId().toString());
+            String tempKey = "chat:read:temp:" + room.getId() + ":" + userId;
+            redisTemplate.opsForSet().add(tempKey, lastMessage.getId().toString());
         }
 
         // 읽지 않은 인원 수 계산
@@ -438,11 +447,17 @@ public class ChatRoomService {
         );
 
         // 이벤트 DTO 생성
-        ChatReadEvent event = new ChatReadEvent(roomUuid, lastMessage.getId(), unreadCount);
+        ChatReadEvent event = new ChatReadEvent(roomUuid, lastMessage.getId(), unreadCount, userId);
 
         // Redis Pub/Sub + stomp 브로드 캐스트
         redisTemplate.convertAndSend("chat:read:event", event);
-        messagingTemplate.convertAndSend("/topic/chat.room." + roomUuid + ".read", event);
+
+        Map<String, Object> allReadyPayload = Map.of(
+                "type", "ALL_READ",
+                "body", event
+        );
+
+        messagingTemplate.convertAndSend("/topic/chat.room." + roomUuid + ".read", allReadyPayload);
 
         log.info("[JOIN READ EVENT] room={}, messageID={}, unread={}", roomUuid, lastMessage.getId(), unreadCount);
     }
@@ -488,9 +503,17 @@ public class ChatRoomService {
         );
 
         // Redis Pub/Sub + STOMP 브로드캐스트
-        ChatReadEvent event = new ChatReadEvent(roomUuid, messageId, unreadCount);
+        ChatReadEvent event = new ChatReadEvent(roomUuid, messageId, unreadCount, userId);
+
+
         redisTemplate.convertAndSend("chat:read:event", event);
-        messagingTemplate.convertAndSend("/topic/chat.room." + roomUuid + ".read", event);
+
+        Map<String, Object> readUpdatePayload = Map.of(
+                "type", "READ_UPDATE",
+                "body", event
+        );
+
+        messagingTemplate.convertAndSend("/topic/chat.room." + roomUuid + ".read", readUpdatePayload);
 
         log.info("[READ EVENT PUBLISH room={}, messageId={}, unread={}", roomUuid, messageId, unreadCount);
 
