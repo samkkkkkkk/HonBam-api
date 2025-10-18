@@ -10,6 +10,7 @@ import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.chatapi.service.ChatRoomService;
 import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/chat/rooms")
 @RequiredArgsConstructor
+@Slf4j
 public class ChatRoomController {
 
     private final ChatRoomService chatRoomService;
@@ -47,16 +49,14 @@ public class ChatRoomController {
     @PostMapping("/join")
     public ResponseEntity<?> joinRoomOnEnter(
             @RequestParam("roomUuid") String roomUuid,
-            Principal principal
+            @AuthenticationPrincipal TokenUserInfo userInfo
     ) {
-        if (!(principal instanceof UsernamePasswordAuthenticationToken)) {
-            return ResponseEntity.status(401).body("인증되지 않은 사용자입니다.");
+        if (userInfo == null) {
+            log.warn("[CHAT JOIN API] 인증되지 않은 사용자 접근");
+            return ResponseEntity.status(401).body("인증되지 않은 사용자 입니다.");
         }
 
-        TokenUserInfo user = (TokenUserInfo)
-                ((UsernamePasswordAuthenticationToken) principal).getPrincipal();
-
-        chatRoomService.markAllAsReadOnJoin(roomUuid, user.getUserId());
+        chatRoomService.markAllAsReadOnJoin(roomUuid, userInfo.getUserId());
         return ResponseEntity.ok().build();
     }
 

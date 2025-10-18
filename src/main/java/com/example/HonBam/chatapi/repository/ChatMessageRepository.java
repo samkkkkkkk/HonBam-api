@@ -21,11 +21,14 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 
     // 내가 읽지 않은 메시지 개수
     @Query("SELECT COUNT(m) FROM ChatMessage m " +
-            "WHERE m.room.id = :roomId AND m.id > :messageId")
-    long countUnreadMessages(@Param("roomId") Long roomId, @Param("messageId") Long messageId);
+            "WHERE m.room.id = :roomId AND m.id > :lastMessageId " +
+            "AND m.senderId <> :userId")
+    long countUnreadMessages(@Param("roomId") Long roomId, @Param("lastMessageId") Long lastMessageId, @Param("userId") String userId);
 
     // 전체 메시지 개수
     long countByRoomId(Long roomId);
+
+    long countByRoomIdAndSenderIdNot(Long roomId, String userId);
 
     // JPA Pageable 방식
     Page<ChatMessage> findByRoomIdOrderByTimestampDesc(Long roomId, Pageable pageable);
@@ -55,4 +58,14 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     @Query("SELECT m.id from ChatMessage m WHERE m.room.id = :roomId AND m.id <= :lastId")
     List<Long> findIdsByRoomAndIdLessThanEqual(@Param("roomId") Long roomId, @Param("lastId") Long lastId);
 
+
+    @Query("SELECT COUNT(m) FROM ChatMessage m " +
+            "WHERE m.room.id = :roomId " +
+            "AND m.senderId <> :userId " +
+            "AND m.id > COALESCE(" +
+            "(SELECT cru.lastReadMessageId " +
+            "FROM ChatRoomUser cru " +
+            "WHERE cru.room.id = :roomId " +
+            "AND cru.user.id = :userId), 0)")
+    long countUnreadMessagesForRoomAndUser(@Param("roomId") Long roomId, @Param("userId") String userId);
 }

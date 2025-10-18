@@ -203,8 +203,8 @@ public class ChatRoomService {
                     // 읽지 않은 메시지 수
                     Long lastReadMessageId = roomUser.getLastReadMessageId();
                     long unreadCount = (lastReadMessageId != null)
-                            ? chatMessageRepository.countUnreadMessages(room.getId(), lastReadMessageId)
-                            : chatMessageRepository.countByRoomId(room.getId());
+                            ? chatMessageRepository.countUnreadMessages(room.getId(), lastReadMessageId, userId)
+                            : chatMessageRepository.countByRoomIdAndSenderIdNot(room.getId(), userId);
 
                     return ChatRoomListResponseDTO.builder()
                             .roomUuid(room.getRoomUuid())
@@ -459,6 +459,17 @@ public class ChatRoomService {
 
         messagingTemplate.convertAndSend("/topic/chat.room." + roomUuid + ".read", allReadyPayload);
 
+        long roomUnreadCount = chatMessageRepository.countUnreadMessagesForRoomAndUser(room.getId(), userId);
+
+        Map<String, Object> summaryPayload = Map.of(
+                "type", "ROOM_SUMMARY_UPDATE",
+                "body", Map.of(
+                        "roomUuid", roomUuid,
+                        "unReadCount", roomUnreadCount
+                )
+        );
+        messagingTemplate.convertAndSend("/topic/chat.summary." + userId, summaryPayload);
+
         log.info("[JOIN READ EVENT] room={}, messageID={}, unread={}", roomUuid, lastMessage.getId(), unreadCount);
     }
 
@@ -504,8 +515,6 @@ public class ChatRoomService {
 
         // Redis Pub/Sub + STOMP 브로드캐스트
         ChatReadEvent event = new ChatReadEvent(roomUuid, messageId, unreadCount, userId);
-
-
         redisTemplate.convertAndSend("chat:read:event", event);
 
         Map<String, Object> readUpdatePayload = Map.of(
@@ -514,6 +523,17 @@ public class ChatRoomService {
         );
 
         messagingTemplate.convertAndSend("/topic/chat.room." + roomUuid + ".read", readUpdatePayload);
+
+        long roomUnreadCount = chatMessageRepository.countUnreadMessagesForRoomAndUser(room.getId(), userId);
+
+        Map<String, Object> summaryPayload = Map.of(
+                "type", "ROOM_SUMMARY_UPDATE",
+                "body", Map.of(
+                        "roomUuid", roomUuid,
+                        "unReadCount", roomUnreadCount
+                )
+        );
+        messagingTemplate.convertAndSend("/topic/chat.summary." + userId, summaryPayload);
 
         log.info("[READ EVENT PUBLISH room={}, messageId={}, unread={}", roomUuid, messageId, unreadCount);
 
