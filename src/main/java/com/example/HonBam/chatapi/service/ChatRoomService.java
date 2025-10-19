@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.util.Comparator.comparing;
@@ -216,6 +217,8 @@ public class ChatRoomService {
                             .allowJoinAll(room.isAllowJoinAll())
                             .lastMessage(lastMessage != null ? lastMessage.getContent() : null)
                             .lastMessageTime(lastMessage != null ? lastMessage.getTimestamp() : null)
+                            .lastMessageId(lastMessage != null ? lastMessage.getId() : null)
+                            .lastReadMessageId(lastReadMessageId)
                             .unReadCount(unreadCount)
                             .build();
                 })
@@ -436,6 +439,7 @@ public class ChatRoomService {
         } else {
             String tempKey = "chat:read:temp:" + room.getId() + ":" + reader.getId();
             redisTemplate.opsForSet().add(tempKey, lastMessageId.toString());
+            redisTemplate.expire(tempKey, 5, TimeUnit.MINUTES);
         }
 
         // Redis 갱신

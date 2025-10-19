@@ -18,7 +18,11 @@ public class ChatRoomListResponseDTO {
     private String ownerId;
     private String lastMessage;
     private LocalDateTime lastMessageTime;
-    long unReadCount;
+    private long unReadCount;
+    private Long lastMessageId;
+    
+    // 사용자별 읽음 커서
+    private Long lastReadMessageId;
 
     @JsonProperty("isDirect")
     private boolean direct;

@@ -56,7 +56,7 @@ public class ChatRoomController {
             return ResponseEntity.status(401).body("인증되지 않은 사용자 입니다.");
         }
 
-        chatRoomService.markAllAsReadOnJoin(roomUuid, userInfo.getUserId());
+//        chatRoomService.markAllAsReadOnJoin(roomUuid, userInfo.getUserId());
         return ResponseEntity.ok().build();
     }
 

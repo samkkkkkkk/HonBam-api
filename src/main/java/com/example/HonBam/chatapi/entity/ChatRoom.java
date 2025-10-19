@@ -39,6 +39,9 @@ public class ChatRoom {
     @Column(name = "last_message_time")
     private LocalDateTime lastMessageTime;
 
+    @Column(name = "last_message_id")
+    private Long lastMessageId;
+
     @Column(name = "is_direct", nullable = false)
     private boolean direct;
 
@@ -67,9 +70,10 @@ public class ChatRoom {
     }
 
     // 메시지 저장 시 캐싱 필드 업데이트
-    public void updateLastMessage(String message, LocalDateTime time) {
+    public void updateLastMessage(String message, LocalDateTime time, Long messageId) {
         this.lastMessage = message;
         this.lastMessageTime = time;
+        this.lastMessageId = messageId;
     }
 
     // group 메시지 전환 메서드

@@ -9,6 +9,7 @@ import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -46,6 +47,15 @@ public class ChatMessageService {
 
         ChatMessage saved = chatMessageRepository.save(message);
         log.info("메시지 저장: {}", message);
+
+        room.updateLastMessage(request.getContent(), message.getTimestamp(), message.getId());
+
+        try {
+            chatRoomRepository.save(room);
+        } catch (DataAccessException e) {
+            log.error("[MESSAGE SAVE] DB error: {} ", e.getMessage());
+            throw new RuntimeException("메시지 저장 중 오류 발생", e);
+        }
 
         // 안 읽은 메시지 수 계산
         long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(
