@@ -1,5 +1,6 @@
 package com.example.HonBam.chatapi.service;
 
+import com.example.HonBam.chatapi.component.ChatEventBroadcaster;
 import com.example.HonBam.chatapi.dto.ChatReadEvent;
 import com.example.HonBam.chatapi.dto.request.CreateRoomRequest;
 import com.example.HonBam.chatapi.dto.response.ChatRoomListResponseDTO;
@@ -47,7 +48,7 @@ public class ChatRoomService {
     private final UserRepository userRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
-    private final UserUtil userUtil;
+    private final ChatEventBroadcaster broadcaster;
 
     public ChatRoom findByRoomUuid(String uuid) {
         return chatRoomRepository.findByRoomUuid(uuid)
@@ -456,20 +457,16 @@ public class ChatRoomService {
         ChatReadEvent event = new ChatReadEvent(room.getRoomUuid(), lastMessageId, unreadCount, reader.getId());
 
         // Redis Pub/Sub + stomp 브로드 캐스트
-        redisTemplate.convertAndSend("chat:read:event", event);
-        messagingTemplate.convertAndSend("/topic/chat.room." + room.getRoomUuid() + ".read", Map.of(
-                "type", "READ_UPDATE",
-                "body", event
-        ));
+        broadcaster.sendReadUpdate(room.getRoomUuid(), event);
 
         // 채팅방 목록 unread 갱신
-        long roomUnreadCount = chatMessageRepository.countUnreadMessagesForRoomAndUser(room.getId(), reader.getId());
-        messagingTemplate.convertAndSend("/topic/chat.summary." + reader.getId(), Map.of(
-                "type", "ROOM_SUMMARY_UPDATE",
-                "body", Map.of("roomUuid", room.getRoomUuid(), "unReadCount", roomUnreadCount)
+        List<ChatRoomUser> participants = chatRoomUserRepository.findByRoom(room);
+        Map<String, Long> unreadMap = participants.stream().collect(Collectors.toMap(
+                cru -> cru.getUser().getId(),
+                cru -> chatMessageRepository.countUnreadMessagesForRoomAndUser(room.getId(), cru.getUser().getId())
         ));
 
-        log.info("[READ EVENT - INTERNAL] room={}, messageID={}, unread={}", room.getRoomUuid(), lastMessageId, unreadCount);
+        broadcaster.broadcastRoomSummaryForParticipants(room, participants, unreadMap, null);
     }
 
 }

@@ -1,9 +1,11 @@
 package com.example.HonBam.chatapi.service;
 
+import com.example.HonBam.chatapi.component.ChatEventBroadcaster;
 import com.example.HonBam.chatapi.dto.request.ChatMessageRequest;
 import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
 import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.ChatRoom;
+import com.example.HonBam.chatapi.entity.ChatRoomUser;
 import com.example.HonBam.chatapi.repository.ChatMessageRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
@@ -13,6 +15,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StopWatch;
@@ -31,6 +34,8 @@ public class ChatMessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatRoomUserRepository chatRoomUserRepository;
     private final ChatRoomRepository chatRoomRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final ChatEventBroadcaster broadcaster;
 
     public ChatMessageResponseDTO saveMessage(ChatMessageRequest request,
                                               String senderId,
@@ -61,10 +66,10 @@ public class ChatMessageService {
         long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(
                 room.getId(),
                 saved.getId(),
-                saved.getSenderId()
+                senderId
         );
 
-        return ChatMessageResponseDTO.builder()
+        ChatMessageResponseDTO response = ChatMessageResponseDTO.builder()
                 .id(saved.getId())
                 .roomUuid(room.getRoomUuid())  // UUID 반환
                 .senderId(saved.getSenderId())
@@ -73,6 +78,22 @@ public class ChatMessageService {
                 .timestamp(saved.getTimestamp())
                 .unReadUserCount(unreadCount)
                 .build();
+
+        // 채팅방 내부 메시지 브로드캐스트
+        broadcaster.sendChatMessages(room.getRoomUuid(), response);
+
+        // 각 참여자의 unreadCount를 다시 계산해서 summary 브로드캐스트
+        List<ChatRoomUser> participants = chatRoomUserRepository.findByRoom(room);
+        Map<String, Long> unreadMap = participants.stream().collect(
+                Collectors.toMap(
+                        cru -> cru.getUser().getId(),
+                        cru -> chatMessageRepository.countUnreadMessagesForRoomAndUser(room.getId(), cru.getUser().getId()))
+        );
+
+        broadcaster.broadcastRoomSummaryForParticipants(room, participants, unreadMap, senderId);
+
+        return response;
+
     }
 
     // JPA Pageable 방식

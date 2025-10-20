@@ -82,32 +82,14 @@ public class ChatMessageController {
     @MessageMapping("/chat/send")
     public void sendMessage(@Payload ChatMessageRequest request,
                             Principal principal) {
-
-        if (principal instanceof UsernamePasswordAuthenticationToken) {
-            TokenUserInfo user = (TokenUserInfo) ((UsernamePasswordAuthenticationToken) principal).getPrincipal();
-            log.info("유저아이디: {}", user.getUserId());
-
-            User sender = userRepository.findById(user.getUserId())
-                    .orElseThrow(() -> new RuntimeException("메시지 전송 사용자를 찾을 수 없습니다."));
-
-            log.info("메시지 내용: {}", request.getContent());
-
-            ChatMessageResponseDTO response = chatMessageService.saveMessage(
-                    request,
-                    sender.getId(),
-                    sender.getNickname()
-            );
-
-            Map<String, Object> payload = Map.of(
-                    "type", "MESSAGE",
-                    "body", response
-            );
-
-            messagingTemplate.convertAndSend("/topic/chat.room." + request.getRoomUuid(), payload);
-        } else {
-            log.warn("메시지 전송: 인증된 사용자 아님");
+        if (!(principal instanceof UsernamePasswordAuthenticationToken)) {
+            log.warn("메시지 전송: 인증되지 않은 사용자입니다.");
+            return;
         }
+
+        TokenUserInfo user = (TokenUserInfo) ((UsernamePasswordAuthenticationToken) principal).getPrincipal();
+        User sender = userRepository.findById(user.getUserId()).orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        chatMessageService.saveMessage(request, sender.getId(), sender.getNickname());
     }
-
-
 }
