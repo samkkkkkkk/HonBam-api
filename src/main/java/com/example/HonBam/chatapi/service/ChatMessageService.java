@@ -80,7 +80,7 @@ public class ChatMessageService {
                 .build();
 
         // 채팅방 내부 메시지 브로드캐스트
-        broadcaster.sendChatMessages(room.getRoomUuid(), response);
+        broadcaster.sendChatMessage(room.getRoomUuid(), response);
 
         // 각 참여자의 unreadCount를 다시 계산해서 summary 브로드캐스트
         List<ChatRoomUser> participants = chatRoomUserRepository.findByRoom(room);

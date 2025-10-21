@@ -19,7 +19,7 @@ public class ChatEventBroadcaster {
     private final SimpMessagingTemplate messagingTemplate;
 
     // 메시지 본문 전송 (방 내부)
-    public void sendChatMessages(String roomUuid, Object body) {
+    public void sendChatMessage(String roomUuid, Object body) {
         messagingTemplate.convertAndSend("/topic/chat.room." + roomUuid, Map.of(
                 "type", "MESSAGE",
                 "body", body
@@ -33,12 +33,12 @@ public class ChatEventBroadcaster {
                 "type", "READ_UPDATE",
                 "body", event
         ));
-        log.debug("[BROADCATE] chat.room.{}.read READ_UPDATE", roomUuid);
+        log.debug("[BROADCAST] chat.room.{}.read READ_UPDATE", roomUuid);
     }
 
     // 채팅방 목록 요약 업데이트 (유저별)
     public void sendRoomSummaryUpdate(String userId, String roomUuid, long unReadCount) {
-        messagingTemplate.convertAndSend("/topci/chat.summary." + userId, Map.of(
+        messagingTemplate.convertAndSend("/topic/chat.summary." + userId, Map.of(
                 "type", "ROOM_SUMMARY_UPDATE",
                 "body", Map.of("roomUuid", roomUuid, "unReadCount", unReadCount)
         ));
