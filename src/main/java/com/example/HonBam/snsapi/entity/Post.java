@@ -25,8 +25,8 @@ public class Post {
     @Column(name = "author_id", nullable = false, length = 36)
     private String authorId;
 
-    @Lob
-    @Column(nullable = false)
+
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     // 여러 이미지 URL을 JSON으로 저장

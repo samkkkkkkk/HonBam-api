@@ -24,9 +24,10 @@ public class Recipe {
     private String cocktailImg;
 
 
+    @Column(columnDefinition = "TEXT")
     private String recipe;
 
-    @Column(name = "recipe_detail")
+    @Column(name = "recipe_detail", columnDefinition = "LONGTEXT")
     private String recipeDetail;
 
 }

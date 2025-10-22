@@ -43,6 +43,7 @@ public class User {
 
     @Setter
     @Builder.Default
+    @Enumerated(EnumType.STRING)
     private SubscriptionStatus subscriptionStatus = SubscriptionStatus.EXPIRED;
 
     @CreationTimestamp

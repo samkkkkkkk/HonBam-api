@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -27,11 +28,19 @@ public class Comment {
     @Column(name = "author_id", nullable = false, length = 36)
     private String authorId;
 
-    @Column(nullable = false)
+
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "parent_id")
+    private Long parentId; // 대댓글 확장용
 
 }
