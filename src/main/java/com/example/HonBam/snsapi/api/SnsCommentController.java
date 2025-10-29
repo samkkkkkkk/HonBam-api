@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/posts")
+@RequestMapping("/api/comments")
 @Slf4j
 @RequiredArgsConstructor
 public class SnsCommentController {
@@ -18,15 +18,22 @@ public class SnsCommentController {
     private final CommentService commentService;
 
     /**
-     *  댓글 작성
+     * 댓글 작성
      */
+//    @PostMapping("/posts/{postId}/comments")
+//    public CommentResponseDTO createComment(
+//            @PathVariable Long postId,
+//            @RequestBody CommentCreateRequestDTO request
+//    ) {
+//        log.info("[POST] create comment for post {}", postId);
+//        return commentService.createComment(postId, request);
+//    }
     @PostMapping("/posts/{postId}/comments")
     public CommentResponseDTO createComment(
             @PathVariable Long postId,
-            @RequestBody CommentCreateRequestDTO request
+            @RequestBody CommentCreateRequestDTO requestDTO
     ) {
-        log.info("[POST] create comment for post {}", postId);
-        return commentService.createComment(postId, request);
+        return commentService.createComment(postId, requestDTO);
     }
 
     /**
@@ -34,6 +41,7 @@ public class SnsCommentController {
      */
     @GetMapping("/posts/{postId}/comments")
     public List<CommentResponseDTO> getComments(@PathVariable Long postId) {
+
         log.info("[GET] list comments for post {}", postId);
         return commentService.getComments(postId);
     }
