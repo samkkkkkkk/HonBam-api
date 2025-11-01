@@ -47,6 +47,12 @@ public class Post {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    public void update(String content, String imageUrlsJson) {
+        this.content = content;
+        this.imageUrlsJson = imageUrlsJson;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void increaseCommentCount() {
         this.commentCount++;
     }
