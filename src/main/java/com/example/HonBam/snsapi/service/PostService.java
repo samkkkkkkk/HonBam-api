@@ -1,10 +1,12 @@
 package com.example.HonBam.snsapi.service;
 
+import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.snsapi.dto.request.PostCreateRequestDTO;
 import com.example.HonBam.snsapi.dto.request.PostUpdateRequestDTO;
 import com.example.HonBam.snsapi.dto.response.PostResponseDTO;
 import com.example.HonBam.snsapi.entity.Post;
 import com.example.HonBam.snsapi.repository.PostRepository;
+import com.example.HonBam.userapi.repository.UserRepository;
 import com.example.HonBam.util.PostUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +25,12 @@ import java.util.stream.Collectors;
 public class PostService {
 
     private final PostRepository postRepository;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final PostUtils postUtils;
 
-    @Transactional
+    // 내 게시물 조회
+    @Transactional(readOnly = true)
     public List<PostResponseDTO> getMyFeeds(String userId, int page, int size) {
         return postRepository.findByAuthorIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
                 .stream()
@@ -78,5 +82,50 @@ public class PostService {
         return PostResponseDTO.from(post, false);
     }
 
+
+    // 특정 유저 게시물
+    @Transactional(readOnly = true)
+    public List<PostResponseDTO> getUserPosts(String userId, int page, int size) {
+
+        userRepository.findById(userId).orElseThrow(
+                () -> new UserNotFoundException("사용자가 존재하지 않습니다.")
+        );
+
+        return postRepository.findByAuthorIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
+                .stream()
+                .map(post -> PostResponseDTO.from(post, false))
+                .collect(Collectors.toList());
+    }
+
+
+    // 탐색 탭
+    @Transactional(readOnly = true)
+    public List<PostResponseDTO> getExplorePosts(String sort, int page, int size) {
+
+        List<Post> posts;
+        if ("recent".equalsIgnoreCase(sort)) {
+            posts = postRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size));
+        } else {
+            posts = postRepository.findAllByOrderByLikeCountDesc(PageRequest.of(page, size));
+        }
+
+        return posts.stream()
+                .map(post -> PostResponseDTO.from(post, false))
+                .collect(Collectors.toList());
+    }
+
+    public void deletePost(String userId, Long postId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new NoSuchElementException("게시물을 찾을 수 없습니다."));
+
+        if (!post.getAuthorId().equals(userId)) {
+            throw new SecurityException("본인의 게시글만 삭제할 수 있습니다.");
+        }
+
+        postRepository.delete(post);
+    }
 }
 

@@ -31,6 +31,7 @@ public class PostController {
         return ResponseEntity.ok().body(response);
     }
 
+    // 내 게시물 조회
     @GetMapping("/my")
     public ResponseEntity<?> getMyFeed(
             @AuthenticationPrincipal TokenUserInfo userInfo,
@@ -41,7 +42,8 @@ public class PostController {
         return ResponseEntity.ok().body(myFeeds);
     }
 
-    @GetMapping("/feed")
+    // 게시글 feed 가져오기
+    @GetMapping
     public ResponseEntity<?> getFeedPosts(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @RequestParam(defaultValue = "0") int page,
@@ -59,6 +61,39 @@ public class PostController {
     ) {
         PostResponseDTO response = postService.updatePost(userInfo.getUserId(), postId, requestDTO);
         return ResponseEntity.ok().body(response);
+    }
+
+
+    // 특정 사용자 게시글 조회
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<PostResponseDTO>> getUserPosts(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        List<PostResponseDTO> responseDto = postService.getUserPosts(userId, page, size);
+        return ResponseEntity.ok().body(responseDto);
+    }
+
+    // 게시글 탐색
+    @GetMapping("/explore")
+    public ResponseEntity<?> getExplorePosts(
+            @RequestParam(defaultValue = "popular") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        List<PostResponseDTO> explorePosts = postService.getExplorePosts(sort, page, size);
+        return ResponseEntity.ok().body(explorePosts);
+    }
+
+
+    // 게시글 삭제
+    @DeleteMapping("/{postId}")
+    public void deletePost(
+            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @PathVariable Long postId
+    ) {
+        postService.deletePost(userInfo.getUserId(), postId);
     }
 
 }
