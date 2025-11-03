@@ -5,10 +5,8 @@ import lombok.*;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode
-@ToString
 @Builder
-public class CommentCreateRequestDTO {
+@ToString
+public class CommentUpdateRequestDTO {
     private String content;
-    private Long parentId;
 }

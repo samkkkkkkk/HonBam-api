@@ -47,9 +47,9 @@ public class Post {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public void update(String content, String imageUrlsJson) {
-        this.content = content;
-        this.imageUrlsJson = imageUrlsJson;
+    public void update(String newContent, String newImageUrlsJson) {
+        if (newContent != null && !newContent.isBlank()) this.content = newContent;
+        if (imageUrlsJson != null) this.imageUrlsJson = newImageUrlsJson;
         this.updatedAt = LocalDateTime.now();
     }
 

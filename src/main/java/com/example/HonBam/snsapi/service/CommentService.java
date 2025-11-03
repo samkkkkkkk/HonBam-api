@@ -2,6 +2,7 @@ package com.example.HonBam.snsapi.service;
 
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.snsapi.dto.request.CommentCreateRequestDTO;
+import com.example.HonBam.snsapi.dto.request.CommentUpdateRequestDTO;
 import com.example.HonBam.snsapi.dto.response.CommentResponseDTO;
 import com.example.HonBam.snsapi.entity.Comment;
 import com.example.HonBam.snsapi.entity.Post;
@@ -26,57 +27,28 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
 
-    private String currentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !(auth.getPrincipal() instanceof TokenUserInfo)) {
-            throw new SecurityException("인증되지 않은 사용자입니다.");
-        }
-        return ((TokenUserInfo) auth.getPrincipal()).getUserId();
-    }
-
-    /**
-     * 댓글 작성
-     */
+    // 댓글 작성
     @Transactional
-    public CommentResponseDTO createComment(Long postId, CommentCreateRequestDTO request) {
-        String userId = currentUserId();
-
-        // 게시글 존재 확인
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new NoSuchElementException("게시글이 존재하지 않습니다."));
+    public CommentResponseDTO createComment(String userId, Long postId, CommentCreateRequestDTO requestDTO) {
+        Post post = postRepository.findById(postId).orElseThrow(() -> new NoSuchElementException("게시글이 존재하지 않습니다."));
 
         Comment comment = Comment.builder()
                 .postId(postId)
                 .authorId(userId)
-                .content(request.getContent())
+                .content(requestDTO.getContent())
+                .parentId(requestDTO.getParentId())
                 .build();
 
         Comment saved = commentRepository.save(comment);
 
-        // 게시글 댓글 수 +1
+        // 게시글 댓글 수 증가
         post.increaseCommentCount();
-
-        return toResponse(saved);
+        return CommentResponseDTO.from(saved);
     }
 
-    /**
-     * 댓글 목록 조회
-     */
-    @Transactional(readOnly = true)
-    public List<CommentResponseDTO> getComments(Long postId) {
-        return commentRepository.findByPostIdOrderByIdAsc(postId)
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 댓글 수정
-     */
+    // 댓글 수정
     @Transactional
-    public CommentResponseDTO updateComment(Long commentId, CommentCreateRequestDTO request) {
-        String userId = currentUserId();
-
+    public CommentResponseDTO updateComment(String userId, Long commentId, CommentUpdateRequestDTO requestDTO) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new NoSuchElementException("댓글이 존재하지 않습니다."));
 
@@ -84,21 +56,15 @@ public class CommentService {
             throw new SecurityException("본인 댓글만 수정할 수 있습니다.");
         }
 
-        comment.editContent(request.getContent());
-        // updatedAt은 @UpdateTimestamp로 자동 갱신됨
-
-        return toResponse(comment);
+        comment.editContent(requestDTO.getContent());
+        return CommentResponseDTO.from(comment);
     }
 
-    /**
-     * 댓글 삭제
-     */
+    // 댓글 삭제
     @Transactional
-    public void deleteComment(Long commentId) {
-        String userId = currentUserId();
-
+    public void deleteComment(String userId, Long commentId) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new NoSuchElementException("댓글이 존재하지 않습니다."));
+                .orElseThrow(() -> new NoSuchElementException("댓글을 찾을 수 없습니다ㅏ."));
 
         if (!comment.getAuthorId().equals(userId)) {
             throw new SecurityException("본인 댓글만 삭제할 수 있습니다.");
@@ -106,18 +72,26 @@ public class CommentService {
 
         commentRepository.delete(comment);
 
-        // 댓글 수 감소
         postRepository.findById(comment.getPostId())
                 .ifPresent(Post::decreaseCommentCount);
+
     }
 
-    private CommentResponseDTO toResponse(Comment c) {
-        return CommentResponseDTO.builder()
-                .id(c.getId())
-                .postId(c.getPostId())
-                .authorId(c.getAuthorId())
-                .content(c.getContent())
-                .createdAt(c.getCreatedAt())
-                .build();
+    // 특정 게시글의 모든 댓글 조회
+    @Transactional(readOnly = true)
+    public List<CommentResponseDTO> getCommentsByPost(Long postId) {
+        return commentRepository.findByPostIdOrderByCreatedAtAsc(postId)
+                .stream()
+                .map(CommentResponseDTO::from)
+                .collect(Collectors.toList());
+    }
+
+    // 특정 댓글의 대댓글 목록
+    @Transactional(readOnly = true)
+    public List<CommentResponseDTO> getReplies(Long postId, Long parentId) {
+        return commentRepository.findByPostIdAndParentIdOrderByCreatedAt(postId, parentId)
+                .stream()
+                .map(CommentResponseDTO::from)
+                .collect(Collectors.toList());
     }
 }

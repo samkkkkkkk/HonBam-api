@@ -84,6 +84,8 @@ public class WebSecurityConfig {
                         .antMatchers("/api/freeboard/**").permitAll()
                         .antMatchers("/api/posts/**").permitAll()
                         .antMatchers("/ws-chat/**", "/chat/**", "/redis/**", "/chatRooms/**", "/topic/**", "/app/**").permitAll()
+                        .antMatchers("/api/sns/feed/explore").permitAll()
+                        .antMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/swagger-resources", "/webjars/**").permitAll()
 
                         // 인증 필요
                         .antMatchers("/api/chat/**").authenticated()
@@ -96,6 +98,7 @@ public class WebSecurityConfig {
                         .antMatchers("/api/auth/delete").authenticated()
                         .antMatchers("/api/tosspay/info").authenticated()
                         .antMatchers("/api/tosspay/confirm").authenticated()
+                        .antMatchers("/api/sns/**").authenticated()
 
                         .anyRequest().authenticated()
                 )

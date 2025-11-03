@@ -23,7 +23,7 @@ public class PostController {
 
     // 게시물 등록
     @PostMapping
-    public ResponseEntity<?> createPost(
+    public ResponseEntity<PostResponseDTO> createPost(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @RequestBody PostCreateRequestDTO requestDTO
     ) {
@@ -33,7 +33,7 @@ public class PostController {
 
     // 내 게시물 조회
     @GetMapping("/my")
-    public ResponseEntity<?> getMyFeed(
+    public ResponseEntity<List<PostResponseDTO>> getMyFeed(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -44,7 +44,7 @@ public class PostController {
 
     // 게시글 feed 가져오기
     @GetMapping
-    public ResponseEntity<?> getFeedPosts(
+    public ResponseEntity<List<PostResponseDTO>> getFeedPosts(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
@@ -54,7 +54,7 @@ public class PostController {
 
     // 게시글 수정
     @PutMapping("/{postId}")
-    public ResponseEntity<?> updatePost(
+    public ResponseEntity<PostResponseDTO> updatePost(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable Long postId,
             @RequestBody PostUpdateRequestDTO requestDTO
@@ -65,24 +65,27 @@ public class PostController {
 
 
     // 특정 사용자 게시글 조회
-    @GetMapping("/user/{userId}")
+    @GetMapping("/user/{authorId}")
     public ResponseEntity<List<PostResponseDTO>> getUserPosts(
-            @PathVariable String userId,
+            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @PathVariable String authorId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        List<PostResponseDTO> responseDto = postService.getUserPosts(userId, page, size);
+        List<PostResponseDTO> responseDto = postService.getUserPosts(userInfo.getUserId(), authorId, page, size);
         return ResponseEntity.ok().body(responseDto);
     }
 
     // 게시글 탐색
     @GetMapping("/explore")
-    public ResponseEntity<?> getExplorePosts(
+    public ResponseEntity<List<PostResponseDTO>> getExplorePosts(
+            @AuthenticationPrincipal TokenUserInfo userInfo,
             @RequestParam(defaultValue = "popular") String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        List<PostResponseDTO> explorePosts = postService.getExplorePosts(sort, page, size);
+        String userId = (userInfo != null) ? userInfo.getUserId() : null;
+        List<PostResponseDTO> explorePosts = postService.getExplorePosts(userId, sort, page, size);
         return ResponseEntity.ok().body(explorePosts);
     }
 
