@@ -1,0 +1,66 @@
+package com.example.HonBam.snsapi.service;
+
+import com.example.HonBam.snsapi.entity.Follow;
+import com.example.HonBam.snsapi.entity.FollowId;
+import com.example.HonBam.snsapi.repository.FollowRepository;
+import io.netty.util.IllegalReferenceCountException;
+import io.swagger.v3.oas.annotations.servers.Server;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+@Transactional
+public class FollowService {
+
+    private final FollowRepository followRepository;
+
+    // 팔로우 등록
+    public void follow(String userId, String targetId) {
+        if (userId.equals(targetId)) {
+            throw new IllegalArgumentException("자기 자신은 팔로우할 수 없습니다.");
+        }
+
+        FollowId id = new FollowId(userId, targetId);
+        if (!followRepository.existsById(id)) {
+            followRepository.save(new Follow(id, LocalDateTime.now()));
+        }
+
+    }
+
+
+    // 팔로우 취소
+    public void unFollow(String userId, String targetId) {
+        FollowId id = new FollowId(userId, targetId);
+        followRepository.deleteById(id);
+    }
+
+    // 팔로우 여부 확인
+    public boolean isFollowing(String userId, String targetId) {
+        return followRepository.existsById(new FollowId(userId, targetId));
+    }
+
+    // 팔로워 / 팔로잉 조회
+    public long getFollowerCount(String userId) {
+        return followRepository.countByIdFollowingId(userId);
+    }
+
+    public long getFollowingCount(String userId) {
+        return followRepository.countByIdFollowerId(userId);
+    }
+
+    public List<Follow> getFollowers(String userId) {
+        return followRepository.findAllByIdFollowingId(userId);
+    }
+
+    public List<Follow> getFollowing(String userId) {
+        return followRepository.findAllByIdFollowerId(userId);
+    }
+
+}

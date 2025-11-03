@@ -6,11 +6,19 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface FollowRepository extends JpaRepository<Follow, Long> {
+public interface FollowRepository extends JpaRepository<Follow, FollowId> {
 
     boolean existsById(FollowId id);
 
-    long countById_FollowerId(String followerId);
+    void deleteById(FollowId id);
+    long countByIdFollowerId(String followerId);
+
+    long countByIdFollowingId(String followingId);
 
     List<Follow> findByIdFollowerId(String followerId);
+
+    List<Follow> findAllByIdFollowingId(String userId);
+
+    List<Follow> findAllByIdFollowerId(String userId);
+
 }
