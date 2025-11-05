@@ -1,5 +1,6 @@
 package com.example.HonBam.snsapi.service;
 
+import com.example.HonBam.notification.event.FollowerCreatedEvent;
 import com.example.HonBam.snsapi.entity.Follow;
 import com.example.HonBam.snsapi.entity.FollowId;
 import com.example.HonBam.snsapi.repository.FollowRepository;
@@ -7,6 +8,7 @@ import io.netty.util.IllegalReferenceCountException;
 import io.swagger.v3.oas.annotations.servers.Server;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ import java.util.List;
 public class FollowService {
 
     private final FollowRepository followRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 팔로우 등록
     public void follow(String userId, String targetId) {
@@ -31,6 +34,9 @@ public class FollowService {
         if (!followRepository.existsById(id)) {
             followRepository.save(new Follow(id, LocalDateTime.now()));
         }
+
+        // 비동기 알림 에븐트 발행
+        eventPublisher.publishEvent(new FollowerCreatedEvent(userId, targetId));
 
     }
 

@@ -1,6 +1,8 @@
 package com.example.HonBam.config;
 
 import com.example.HonBam.chatapi.listener.ChatEventSubscriber;
+import com.example.HonBam.notification.entity.Notification;
+import com.example.HonBam.notification.subscriber.NotificationSubscriber;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -46,12 +48,14 @@ public class RedisConfig {
     // Redis Pub/Sub Listener 등록
     @Bean
     public RedisMessageListenerContainer rediscontainer(
-                        RedisConnectionFactory connectionFactory,
-                        ChatEventSubscriber chatEventSubscriber) {
+            RedisConnectionFactory connectionFactory,
+            ChatEventSubscriber chatEventSubscriber,
+            NotificationSubscriber notificationSubscriber) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         // 읽음 이벤트 리스너 등록
         container.addMessageListener(chatEventSubscriber, new PatternTopic("chat:read:event"));
+        container.addMessageListener(notificationSubscriber, new PatternTopic("notification:*"));
         return container;
     }
 

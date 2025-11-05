@@ -58,7 +58,7 @@ public class PostService {
     }
 
 
-    // 댓
+    // 게시물 등록
     @Transactional
     public PostResponseDTO createPost(String userId, PostCreateRequestDTO requestDTO) {
 
