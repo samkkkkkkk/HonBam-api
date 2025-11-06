@@ -75,6 +75,7 @@ public class WebSecurityConfig {
 
                         // 공개 API
                         .antMatchers(HttpMethod.POST, "/api/auth").permitAll() // 회원가입
+                        .antMatchers("/uploads/**").permitAll()
                         .antMatchers("/api/auth/login").permitAll()
                         .antMatchers("/api/auth/check").permitAll()
                         .antMatchers("/api/auth/refresh").permitAll()
