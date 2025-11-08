@@ -25,7 +25,6 @@ public class Post {
     @Column(name = "author_id", nullable = false, length = 36)
     private String authorId;
 
-
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 

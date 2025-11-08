@@ -1,6 +1,7 @@
 package com.example.HonBam.snsapi.service;
 
 import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.snsapi.dto.request.CommentCreateRequestDTO;
 import com.example.HonBam.snsapi.dto.request.CommentUpdateRequestDTO;
 import com.example.HonBam.snsapi.dto.response.CommentResponseDTO;
@@ -8,6 +9,8 @@ import com.example.HonBam.snsapi.entity.Comment;
 import com.example.HonBam.snsapi.entity.Post;
 import com.example.HonBam.snsapi.repository.CommentRepository;
 import com.example.HonBam.snsapi.repository.PostRepository;
+import com.example.HonBam.userapi.entity.User;
+import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -26,11 +29,20 @@ public class CommentService {
 
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
+    private final UserRepository userRepository;
+
+    public User getAuthor(String authorId) {
+        return userRepository.findById(authorId)
+                .orElseThrow(() -> new UserNotFoundException("작성자를 찾을 수 없습니다."));
+    }
 
     // 댓글 작성
     @Transactional
     public CommentResponseDTO createComment(String userId, Long postId, CommentCreateRequestDTO requestDTO) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new NoSuchElementException("게시글이 존재하지 않습니다."));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
         Comment comment = Comment.builder()
                 .postId(postId)
@@ -43,7 +55,7 @@ public class CommentService {
 
         // 게시글 댓글 수 증가
         post.increaseCommentCount();
-        return CommentResponseDTO.from(saved);
+        return CommentResponseDTO.from(saved, user);
     }
 
     // 댓글 수정
@@ -52,12 +64,15 @@ public class CommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new NoSuchElementException("댓글이 존재하지 않습니다."));
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+
         if (!comment.getAuthorId().equals(userId)) {
             throw new SecurityException("본인 댓글만 수정할 수 있습니다.");
         }
 
         comment.editContent(requestDTO.getContent());
-        return CommentResponseDTO.from(comment);
+        return CommentResponseDTO.from(comment, user);
     }
 
     // 댓글 삭제
@@ -80,9 +95,13 @@ public class CommentService {
     // 특정 게시글의 모든 댓글 조회
     @Transactional(readOnly = true)
     public List<CommentResponseDTO> getCommentsByPost(Long postId) {
+
         return commentRepository.findByPostIdOrderByCreatedAtAsc(postId)
                 .stream()
-                .map(CommentResponseDTO::from)
+                .map(comment -> {
+                    User author = getAuthor(comment.getAuthorId());
+                    return CommentResponseDTO.from(comment, author);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -91,7 +110,10 @@ public class CommentService {
     public List<CommentResponseDTO> getReplies(Long postId, Long parentId) {
         return commentRepository.findByPostIdAndParentIdOrderByCreatedAt(postId, parentId)
                 .stream()
-                .map(CommentResponseDTO::from)
+                .map(comment -> {
+                    User author = getAuthor(comment.getAuthorId());
+                    return CommentResponseDTO.from(comment, author);
+                })
                 .collect(Collectors.toList());
     }
 }

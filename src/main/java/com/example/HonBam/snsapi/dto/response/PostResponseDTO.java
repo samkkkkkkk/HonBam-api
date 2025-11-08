@@ -1,6 +1,7 @@
 package com.example.HonBam.snsapi.dto.response;
 
 import com.example.HonBam.snsapi.entity.Post;
+import com.example.HonBam.userapi.entity.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.*;
@@ -18,6 +19,8 @@ import java.util.List;
 public class PostResponseDTO {
     private Long id;
     private String authorId;
+    private String nickname;
+    private String profileImage;
     private String content;
     private List<String> imageUrls;
     private int likeCount;
@@ -26,10 +29,12 @@ public class PostResponseDTO {
     private LocalDateTime updatedAt;
     private boolean likeByMe;
 
-    public static PostResponseDTO from(Post post, boolean likeByMe) {
+    public static PostResponseDTO from(Post post, boolean likeByMe, User user) {
         return PostResponseDTO.builder()
                 .id(post.getId())
                 .authorId(post.getAuthorId())
+                .nickname(user.getNickname())
+                .profileImage(user.getProfileImg())
                 .content(post.getContent())
                 .imageUrls(parseImageUrls(post.getImageUrlsJson()))
                 .likeCount(post.getLikeCount())

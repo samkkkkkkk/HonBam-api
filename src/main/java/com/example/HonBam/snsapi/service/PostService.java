@@ -8,6 +8,7 @@ import com.example.HonBam.snsapi.entity.Post;
 import com.example.HonBam.snsapi.entity.PostLikeId;
 import com.example.HonBam.snsapi.repository.PostLikeRepository;
 import com.example.HonBam.snsapi.repository.PostRepository;
+import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
 import com.example.HonBam.util.PostUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,30 +30,45 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
-    private final ObjectMapper objectMapper;
     private final PostUtils postUtils;
+
+    // 작성자 추출 메서드
+    private User getAuthor(String authorId) {
+        return userRepository.findById(authorId)
+                .orElseThrow(() -> new UserNotFoundException("작성자를 찾을 수 없습니다."));
+    }
 
     // 내 게시물 조회
     @Transactional(readOnly = true)
     public List<PostResponseDTO> getMyFeeds(String userId, int page, int size) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
         return postRepository.findByAuthorIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
                 .stream()
                 .map(post -> {
                     boolean liked = isPostLikedByUser(userId, post.getId());
-                    return PostResponseDTO.from(post, liked);
+                    User author = getAuthor(post.getAuthorId());
+                    return PostResponseDTO.from(post, liked, author);
                 })
                 .collect(Collectors.toList());
 
     }
 
+
     @Transactional
     public List<PostResponseDTO> getFeedPosts(String userId, int page, int size) {
         // 팔로잉 유저들의 게시물 조회
         List<Post> posts = postRepository.findFeedPosts(userId, PageRequest.of(page, size));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+
         return posts.stream()
                 .map(post -> {
                     boolean liked = isPostLikedByUser(userId, post.getId());
-                    return PostResponseDTO.from(post, liked);
+                    User author = getAuthor(post.getAuthorId());
+                    return PostResponseDTO.from(post, liked, author);
                 })
                 .collect(Collectors.toList());
     }
@@ -61,6 +77,10 @@ public class PostService {
     // 게시물 등록
     @Transactional
     public PostResponseDTO createPost(String userId, PostCreateRequestDTO requestDTO) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+
 
         String jsonImages = postUtils.safeConvertImageUrlsToJson(requestDTO.getImageUrls());
 
@@ -73,7 +93,7 @@ public class PostService {
                 .build();
 
         Post saved = postRepository.save(post);
-        return PostResponseDTO.from(saved, false);
+        return PostResponseDTO.from(saved, false, user);
     }
 
 
@@ -90,8 +110,8 @@ public class PostService {
         boolean liked = isPostLikedByUser(userId, post.getId());
         String jsonImages = postUtils.safeConvertImageUrlsToJson(requestDTO.getImageUrls());
         post.update(requestDTO.getContent(), jsonImages);
-
-        return PostResponseDTO.from(post, liked);
+        User author = getAuthor(post.getAuthorId());
+        return PostResponseDTO.from(post, liked, author);
     }
 
 
@@ -99,15 +119,12 @@ public class PostService {
     @Transactional(readOnly = true)
     public List<PostResponseDTO> getUserPosts(String userId, String authorId, int page, int size) {
 
-        userRepository.findById(authorId).orElseThrow(
-                () -> new UserNotFoundException("사용자가 존재하지 않습니다.")
-        );
-
         return postRepository.findByAuthorIdOrderByCreatedAtDesc(authorId, PageRequest.of(page, size))
                 .stream()
                 .map(post -> {
                     boolean liked = isPostLikedByUser(userId, post.getId());
-                    return PostResponseDTO.from(post, liked);
+                    User author = getAuthor(post.getAuthorId());
+                    return PostResponseDTO.from(post, liked, author);
                 })
                 .collect(Collectors.toList());
     }
@@ -130,7 +147,8 @@ public class PostService {
                     if (userId != null) {
                         liked = isPostLikedByUser(userId, post.getId());
                     }
-                    return PostResponseDTO.from(post, liked);
+                    User author = getAuthor(post.getAuthorId());
+                    return PostResponseDTO.from(post, liked, author);
                 })
                 .collect(Collectors.toList());
     }
