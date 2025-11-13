@@ -19,8 +19,8 @@ import java.util.List;
 public class PostResponseDTO {
     private Long id;
     private String authorId;
-    private String nickname;
-    private String profileImage;
+    private String authorNickname;
+    private String authorProfileUrl;
     private String content;
     private List<String> imageUrls;
     private int likeCount;
@@ -29,12 +29,12 @@ public class PostResponseDTO {
     private LocalDateTime updatedAt;
     private boolean likeByMe;
 
-    public static PostResponseDTO from(Post post, boolean likeByMe, User user) {
+    public static PostResponseDTO from(Post post, boolean likeByMe, String nickname, String profileUrl) {
         return PostResponseDTO.builder()
                 .id(post.getId())
                 .authorId(post.getAuthorId())
-                .nickname(user.getNickname())
-                .profileImage(user.getProfileImg())
+                .authorNickname(nickname)
+                .authorProfileUrl(profileUrl)
                 .content(post.getContent())
                 .imageUrls(parseImageUrls(post.getImageUrlsJson()))
                 .likeCount(post.getLikeCount())
