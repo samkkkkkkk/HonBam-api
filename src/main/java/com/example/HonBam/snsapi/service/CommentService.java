@@ -9,6 +9,7 @@ import com.example.HonBam.snsapi.entity.Comment;
 import com.example.HonBam.snsapi.entity.Post;
 import com.example.HonBam.snsapi.repository.CommentRepository;
 import com.example.HonBam.snsapi.repository.PostRepository;
+import com.example.HonBam.userapi.entity.LoginProvider;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +39,16 @@ public class CommentService {
     // 댓글 작성
     @Transactional
     public CommentResponseDTO createComment(String userId, Long postId, CommentCreateRequestDTO requestDTO) {
+
+        if (requestDTO.getParentId() != null) {
+            Comment parent = commentRepository.findById(requestDTO.getParentId())
+                    .orElseThrow(() -> new NoSuchElementException("댓글이 존재하지 않습니다."));
+
+            if (parent.getParentId() != null) {
+                throw new RuntimeException("대댓글에 댓글을 작성할 수 없습니다.");
+            }
+        }
+
         Post post = postRepository.findById(postId).orElseThrow(() -> new NoSuchElementException("게시글이 존재하지 않습니다."));
 
         User user = userRepository.findById(userId)
@@ -55,7 +65,7 @@ public class CommentService {
 
         // 게시글 댓글 수 증가
         post.increaseCommentCount();
-        return CommentResponseDTO.from(saved, user);
+        return convertToCommentDTO(saved);
     }
 
     // 댓글 수정
@@ -72,7 +82,7 @@ public class CommentService {
         }
 
         comment.editContent(requestDTO.getContent());
-        return CommentResponseDTO.from(comment, user);
+        return convertToCommentDTO(comment);
     }
 
     // 댓글 삭제
@@ -92,28 +102,63 @@ public class CommentService {
 
     }
 
-    // 특정 게시글의 모든 댓글 조회
-    @Transactional(readOnly = true)
-    public List<CommentResponseDTO> getCommentsByPost(Long postId) {
-
-        return commentRepository.findByPostIdOrderByCreatedAtAsc(postId)
-                .stream()
-                .map(comment -> {
-                    User author = getAuthor(comment.getAuthorId());
-                    return CommentResponseDTO.from(comment, author);
-                })
-                .collect(Collectors.toList());
-    }
-
     // 특정 댓글의 대댓글 목록
     @Transactional(readOnly = true)
     public List<CommentResponseDTO> getReplies(Long postId, Long parentId) {
         return commentRepository.findByPostIdAndParentIdOrderByCreatedAt(postId, parentId)
                 .stream()
-                .map(comment -> {
-                    User author = getAuthor(comment.getAuthorId());
-                    return CommentResponseDTO.from(comment, author);
-                })
+                .map(comment -> convertToCommentDTO(comment))
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    public List<CommentResponseDTO> getComments(Long postId) {
+        List<Comment> comments = commentRepository.findByPostIdOrderByCreatedAtAsc(postId);
+
+        Map<Long, CommentResponseDTO> map = new HashMap<>();
+        List<CommentResponseDTO> roots = new ArrayList<>();
+
+        for (Comment c : comments) {
+            CommentResponseDTO dto = convertToCommentDTO(c);
+            map.put(c.getId(), dto);
+            if (c.getParentId() == null) {
+                roots.add(dto);
+            }
+        }
+
+        for (Comment c : comments) {
+            if (c.getParentId() != null) {
+                CommentResponseDTO parent = map.get(c.getParentId());
+                CommentResponseDTO child = map.get(c.getId());
+                if (parent != null && child != null) {
+                    parent.getChildren().add(child);
+                }
+            }
+        }
+
+        return roots;
+    }
+
+    private String buildProfileUrl(User author) {
+        if (author.getLoginProvider() != LoginProvider.LOCAL) {
+            return author.getProfileImg();
+        }
+
+        if (author.getProfileImg() == null) {
+            return "default-profile.png";
+        }
+
+        return "uploads/" + author.getProfileImg();
+    }
+
+    private CommentResponseDTO convertToCommentDTO(Comment comment) {
+        User author = userRepository.findById(comment.getAuthorId())
+                .orElseThrow(() -> new UserNotFoundException("댓글 작성자를 찾을 수 없습니다."));
+
+        String authorNickname = author.getNickname();
+        String profileUrl = buildProfileUrl(author);
+
+        return CommentResponseDTO.from(comment, authorNickname, profileUrl);
+    }
+
 }

@@ -67,7 +67,7 @@ public class SnsCommentController {
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable Long postId
     ) {
-        return ResponseEntity.ok(commentService.getCommentsByPost(postId));
+        return ResponseEntity.ok(commentService.getComments(postId));
     }
 
     // 대댓글 목록 조회

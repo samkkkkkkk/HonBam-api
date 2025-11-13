@@ -5,6 +5,8 @@ import com.example.HonBam.userapi.entity.User;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter @ToString
 @EqualsAndHashCode
@@ -15,20 +17,23 @@ public class CommentResponseDTO {
     private Long id;
     private Long postId;
     private String authorId;
-    private String nickname;
-    private String profileImage;
+    private String authorNickname;
+    private String authorProfileUrl;
     private String content;
     private Long parentId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static CommentResponseDTO from(Comment comment, User user) {
+    @Builder.Default
+    private List<CommentResponseDTO> children = new ArrayList<>();
+
+    public static CommentResponseDTO from(Comment comment, String authorNickname, String profileImageUrl) {
         return CommentResponseDTO.builder()
                 .id(comment.getId())
                 .postId(comment.getPostId())
                 .authorId(comment.getAuthorId())
-                .nickname(user.getNickname())
-                .profileImage(user.getProfileImg())
+                .authorNickname(authorNickname)
+                .authorProfileUrl(profileImageUrl)
                 .content(comment.getContent())
                 .parentId(comment.getParentId())
                 .createdAt(comment.getCreatedAt())
