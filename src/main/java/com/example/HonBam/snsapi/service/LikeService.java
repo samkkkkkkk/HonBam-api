@@ -75,9 +75,8 @@ public class LikeService {
 
     // 좋아요 수 조회
     public int getLikeCount(Long postId) {
-        return postRepository.findById(postId)
-                .map(Post::getLikeCount)
-                .orElse(0);
+        Integer count = postRepository.findLikeCount(postId);
+        return count != null ? count : 0;
     }
 
 }

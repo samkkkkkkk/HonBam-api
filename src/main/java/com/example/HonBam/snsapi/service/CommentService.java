@@ -1,5 +1,7 @@
 package com.example.HonBam.snsapi.service;
 
+import com.example.HonBam.exception.CommentNotFoundException;
+import com.example.HonBam.exception.PostNotFoundException;
 import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.snsapi.dto.request.CommentCreateRequestDTO;
 import com.example.HonBam.snsapi.dto.request.CommentUpdateRequestDTO;
@@ -38,15 +40,15 @@ public class CommentService {
     public CommentResponseDTO createComment(String userId, Long postId, CommentCreateRequestDTO requestDTO) {
 
         if (requestDTO.getParentId() != null) {
-            Comment parent = commentRepository.findById(requestDTO.getParentId())
-                    .orElseThrow(() -> new NoSuchElementException("댓글이 존재하지 않습니다."));
+            Comment parent = commentRepository.findByIdAndPostId(requestDTO.getParentId(), postId)
+                    .orElseThrow(() -> new CommentNotFoundException("댓글이 존재하지 않습니다."));
 
             if (parent.getParentId() != null) {
                 throw new RuntimeException("대댓글에 댓글을 작성할 수 없습니다.");
             }
         }
 
-        Post post = postRepository.findById(postId).orElseThrow(() -> new NoSuchElementException("게시글이 존재하지 않습니다."));
+        Post post = postRepository.findById(postId).orElseThrow(() -> new PostNotFoundException("게시글이 존재하지 않습니다."));
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
@@ -61,7 +63,11 @@ public class CommentService {
         Comment saved = commentRepository.save(comment);
 
         // 게시글 댓글 수 증가
-        post.increaseCommentCount();
+        int updated = postRepository.increaseCommentCount(postId);
+        if (updated == 0) {
+            throw new IllegalArgumentException("댓글 증가 처리에 실패했습니다.");
+        }
+
         return convertToCommentDTO(saved);
     }
 
@@ -69,7 +75,7 @@ public class CommentService {
     @Transactional
     public CommentResponseDTO updateComment(String userId, Long commentId, CommentUpdateRequestDTO requestDTO) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new NoSuchElementException("댓글이 존재하지 않습니다."));
+                .orElseThrow(() -> new CommentNotFoundException("댓글이 존재하지 않습니다."));
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
@@ -86,7 +92,7 @@ public class CommentService {
     @Transactional
     public void deleteComment(String userId, Long commentId) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new NoSuchElementException("댓글을 찾을 수 없습니다ㅏ."));
+                .orElseThrow(() -> new CommentNotFoundException("댓글을 찾을 수 없습니다."));
 
         if (!comment.getAuthorId().equals(userId)) {
             throw new SecurityException("본인 댓글만 삭제할 수 있습니다.");
@@ -94,8 +100,10 @@ public class CommentService {
 
         commentRepository.delete(comment);
 
-        postRepository.findById(comment.getPostId())
-                .ifPresent(Post::decreaseCommentCount);
+        int updated = postRepository.decreaseCommentCount(comment.getPostId());
+        if (updated == 0) {
+            throw new IllegalArgumentException("댓글 삭제는 완료 되었지만 댓글 수 감소 처리에 실패했습니다.");
+        }
 
     }
 
@@ -108,7 +116,7 @@ public class CommentService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CommentResponseDTO> getComments(Long postId) {
         List<Comment> comments = commentRepository.findByPostIdOrderByCreatedAtAsc(postId);
 

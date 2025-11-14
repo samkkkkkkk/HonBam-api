@@ -4,6 +4,7 @@ import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.snsapi.dto.request.PostUpdateRequestDTO;
 import com.example.HonBam.snsapi.dto.request.PostCreateRequestDTO;
 import com.example.HonBam.snsapi.dto.response.PostResponseDTO;
+import com.example.HonBam.snsapi.dto.response.TodayShotResponseDTO;
 import com.example.HonBam.snsapi.service.PostService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,14 @@ public class PostController {
         return ResponseEntity.ok().body(response);
     }
 
+    // 게시글 상세 조회
+    @GetMapping("/{postId}")
+    public ResponseEntity<?> getPostDetail(
+            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @PathVariable Long postId) {
+        PostResponseDTO dto = postService.getPostDetail(userInfo.getUserId(), postId);
+        return ResponseEntity.ok(dto);
+    }
     // 내 게시물 조회
     @GetMapping("/my")
     public ResponseEntity<List<PostResponseDTO>> getMyFeed(
@@ -97,6 +106,15 @@ public class PostController {
             @PathVariable Long postId
     ) {
         postService.deletePost(userInfo.getUserId(), postId);
+    }
+
+    // 오늘의 인증샷
+    @GetMapping("/today-shots")
+    public ResponseEntity<List<TodayShotResponseDTO>> getTodayShots(
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        List<TodayShotResponseDTO> shots = postService.getTodayShots(limit);
+        return ResponseEntity.ok().body(shots);
     }
 
 }

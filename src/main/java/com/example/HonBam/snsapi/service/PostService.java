@@ -1,9 +1,11 @@
 package com.example.HonBam.snsapi.service;
 
+import com.example.HonBam.exception.PostNotFoundException;
 import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.snsapi.dto.request.PostCreateRequestDTO;
 import com.example.HonBam.snsapi.dto.request.PostUpdateRequestDTO;
 import com.example.HonBam.snsapi.dto.response.PostResponseDTO;
+import com.example.HonBam.snsapi.dto.response.TodayShotResponseDTO;
 import com.example.HonBam.snsapi.entity.Post;
 import com.example.HonBam.snsapi.entity.PostLikeId;
 import com.example.HonBam.snsapi.repository.PostLikeRepository;
@@ -12,13 +14,18 @@ import com.example.HonBam.userapi.entity.LoginProvider;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
 import com.example.HonBam.util.PostUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -32,6 +39,7 @@ public class PostService {
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
     private final PostUtils postUtils;
+    private final ObjectMapper objectMapper;
 
     // 작성자 추출 메서드
     private User getAuthor(String authorId) {
@@ -93,7 +101,7 @@ public class PostService {
                 .build();
 
         Post saved = postRepository.save(post);
-        return convertToDTO(post, userId);
+        return convertToDTO(saved, userId);
     }
 
 
@@ -157,6 +165,7 @@ public class PostService {
         return "uploads/" + author.getProfileImg();
     }
 
+    // nickname과 profileUrl을 포함하여 DTO로 변환
     private PostResponseDTO convertToDTO(Post post, String viewerId) {
         boolean liked = isPostLikedByUser(viewerId, post.getId());
 
@@ -167,6 +176,65 @@ public class PostService {
         String profileUrl = buildProfileUrl(author);
 
         return PostResponseDTO.from(post, liked, nickname, profileUrl);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TodayShotResponseDTO> getTodayShots(int limit) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = today.plusDays(1).atStartOfDay();
+
+        Pageable pageable = PageRequest.of(0, limit);
+
+        List<Post> posts = postRepository.findTodayShotsOrderByLikes(start, end, pageable);
+
+        return posts.stream()
+                .map(post -> {
+                    List<String> imageUrls = extractImageUrls(post.getImageUrlsJson());
+                    if (imageUrls.isEmpty()) return null;
+
+                    User author = userRepository.findById(post.getAuthorId())
+                            .orElseThrow(() -> new UserNotFoundException("작성자를 찾을 수 없습니다."));
+
+                    String authorProfileUrl = buildProfileUrl(author);
+
+                    return TodayShotResponseDTO.builder()
+                            .postId(post.getId())
+                            .firstImageUrl(imageUrls.get(0))
+                            .imageUrls(imageUrls)
+                            .content(post.getContent())
+                            .likeCount(post.getLikeCount())
+                            .authorNickname(author.getNickname())
+                            .authorProfileUrl(authorProfileUrl)
+                            .build();
+                })
+                // 실제로 이미지가 하나 이상 있는 경우만 오늘의 인증샷으로 사용
+                .filter(dto -> dto.getImageUrls() != null && !dto.getImageUrls().isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    private List<String> extractImageUrls(String imageUrlsJson) {
+        if (imageUrlsJson == null || imageUrlsJson.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        try {
+            List<String> urls = objectMapper.readValue(
+                    imageUrlsJson,
+                    new TypeReference<List<String>>() {}
+            );
+            return (urls == null) ? Collections.emptyList() : urls;
+        } catch (Exception e) {
+            log.warn("imageUrlsJson 파싱 실패: {}", imageUrlsJson, e);
+            return Collections.emptyList();
+        }
+    }
+
+    public PostResponseDTO getPostDetail(String viewerId, Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new PostNotFoundException("게시글을 찾을 수 없습니다."));
+
+        return convertToDTO(post, viewerId);
     }
 }
 

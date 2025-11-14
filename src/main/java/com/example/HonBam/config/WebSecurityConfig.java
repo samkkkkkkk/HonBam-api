@@ -86,6 +86,7 @@ public class WebSecurityConfig {
                         .antMatchers("/api/posts/**").permitAll()
                         .antMatchers("/ws-chat/**", "/chat/**", "/redis/**", "/chatRooms/**", "/topic/**", "/app/**").permitAll()
                         .antMatchers("/api/sns/feed/explore").permitAll()
+                        .antMatchers("/api/sns/feed/today-shots").permitAll()
                         .antMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/swagger-resources", "/webjars/**").permitAll()
 
                         // 인증 필요
