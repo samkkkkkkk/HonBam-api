@@ -1,6 +1,5 @@
 package com.example.HonBam.snsapi.service;
 
-import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.snsapi.dto.request.CommentCreateRequestDTO;
 import com.example.HonBam.snsapi.dto.request.CommentUpdateRequestDTO;
@@ -14,8 +13,6 @@ import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

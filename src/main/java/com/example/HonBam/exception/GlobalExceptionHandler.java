@@ -45,6 +45,13 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("MESSAGE_SEND_ERROR", ex.getMessage()));
     }
 
+    @ExceptionHandler(PostNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePostNotFoundException(PostNotFoundException exception) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("POST_NOT_FOUND", exception.getMessage()));
+    }
+
     // 기타 RuntimeException 처리 (fallback)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {

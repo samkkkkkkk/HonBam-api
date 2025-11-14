@@ -48,8 +48,7 @@ public class Post {
 
     public void update(String newContent, String newImageUrlsJson) {
         if (newContent != null && !newContent.isBlank()) this.content = newContent;
-        if (imageUrlsJson != null) this.imageUrlsJson = newImageUrlsJson;
-        this.updatedAt = LocalDateTime.now();
+        if (newImageUrlsJson != null) this.imageUrlsJson = newImageUrlsJson;
     }
 
     public void increaseCommentCount() {

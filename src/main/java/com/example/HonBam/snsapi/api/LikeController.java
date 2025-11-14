@@ -24,7 +24,7 @@ public class LikeController {
             @PathVariable Long postId
     ) {
         likeService.addLike(userInfo.getUserId(), postId);
-        long likeCount = likeService.getLikeCount(postId);
+        int likeCount = likeService.getLikeCount(postId);
 
         return ResponseEntity.ok(Map.of(
                 "liked", true,
@@ -39,7 +39,7 @@ public class LikeController {
             @PathVariable Long postId
     ) {
         likeService.removeLike(userInfo.getUserId(), postId);
-        long likeCount = likeService.getLikeCount(postId);
+        int likeCount = likeService.getLikeCount(postId);
 
         return ResponseEntity.ok(Map.of(
                 "liked", false,

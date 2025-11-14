@@ -1,5 +1,6 @@
 package com.example.HonBam.snsapi.service;
 
+import com.example.HonBam.exception.PostNotFoundException;
 import com.example.HonBam.notification.event.LikeCreateEvent;
 import com.example.HonBam.snsapi.entity.Post;
 import com.example.HonBam.snsapi.entity.PostLike;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -23,16 +25,28 @@ public class LikeService {
     private final ApplicationEventPublisher eventPublisher;
 
     // 좋아요 추가
+    @Transactional
     public void addLike(String userId, Long postId) {
         PostLikeId id = new PostLikeId(userId, postId);
-        if (!postLikeRepository.existsById(id)) {
-            postLikeRepository.save(new PostLike(id, LocalDateTime.now()));
+        if (postLikeRepository.existsById(id)) {
+            return;
+        }
+
+        postLikeRepository.save(new PostLike(id, LocalDateTime.now()));
+
+        int updated = postRepository.increaseLikeCount(postId);
+
+        if (updated == 0) {
+            throw new PostNotFoundException("게시물이 존재하지 않습니다.");
         }
 
         // 게시글 작성자 조회 (Post.authorId)
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("게시글 없음"));
+                .orElseThrow(() -> new PostNotFoundException("게시글이 존재하지 않습니다."));
+
         String receivedId = post.getAuthorId();
+
+
 
         // 비동기 알림 이벤트 발생
         eventPublisher.publishEvent(new LikeCreateEvent(userId, postId, receivedId));
@@ -40,9 +54,18 @@ public class LikeService {
     }
 
     // 좋아요 취소
+    @Transactional
     public void removeLike(String userId, Long postId) {
+        postRepository.findById(postId)
+                .orElseThrow(() -> new PostNotFoundException("게시글이 존재하지 않습니다."));
+
         PostLikeId id = new PostLikeId(userId, postId);
+        if (!postLikeRepository.existsById(id)) {
+            return;
+        }
         postLikeRepository.deleteById(id);
+
+        int updated = postRepository.decreaseLikeCount(postId);
     }
 
     // 좋아요 여부 확인
@@ -51,8 +74,10 @@ public class LikeService {
     }
 
     // 좋아요 수 조회
-    public Long getLikeCount(Long postId) {
-        return postLikeRepository.countByIdPostId(postId);
+    public int getLikeCount(Long postId) {
+        return postRepository.findById(postId)
+                .map(Post::getLikeCount)
+                .orElse(0);
     }
 
 }
