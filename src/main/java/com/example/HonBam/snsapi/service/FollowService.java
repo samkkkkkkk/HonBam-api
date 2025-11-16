@@ -1,11 +1,15 @@
 package com.example.HonBam.snsapi.service;
 
+import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.notification.event.FollowerCreatedEvent;
+import com.example.HonBam.snsapi.dto.response.UserFollowResponseDTO;
 import com.example.HonBam.snsapi.entity.Follow;
 import com.example.HonBam.snsapi.entity.FollowId;
 import com.example.HonBam.snsapi.repository.FollowRepository;
-import io.netty.util.IllegalReferenceCountException;
-import io.swagger.v3.oas.annotations.servers.Server;
+import com.example.HonBam.snsapi.repository.PostRepository;
+import com.example.HonBam.userapi.entity.User;
+import com.example.HonBam.userapi.repository.UserRepository;
+import com.example.HonBam.util.PostUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -22,6 +26,9 @@ import java.util.List;
 public class FollowService {
 
     private final FollowRepository followRepository;
+    private final UserRepository userRepository;
+    private final PostRepository postRepository;
+    private final PostUtils postUtils;
     private final ApplicationEventPublisher eventPublisher;
 
     // 팔로우 등록
@@ -44,6 +51,7 @@ public class FollowService {
     // 팔로우 취소
     public void unFollow(String userId, String targetId) {
         FollowId id = new FollowId(userId, targetId);
+        if (!followRepository.existsById(id)) return;
         followRepository.deleteById(id);
     }
 
@@ -69,4 +77,24 @@ public class FollowService {
         return followRepository.findAllByIdFollowerId(userId);
     }
 
+    public UserFollowResponseDTO getSnsProfile(String viewerId, String targetId) {
+        User targetUser = userRepository.findById(targetId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+
+        long followerCount = getFollowerCount(targetId);
+        long followingCount = getFollowingCount(targetId);
+
+        long postCount = postRepository.countByAuthorId(targetId);
+
+        boolean following = false;
+
+        if (viewerId != null && !viewerId.equals(targetId)) {
+            following = followRepository.existsById(new FollowId(viewerId, targetId));
+        }
+
+        String profileImageUrl = postUtils.buildProfileUrl(targetUser);
+
+        return UserFollowResponseDTO.from(targetId, targetUser.getNickname(), profileImageUrl, followerCount, followingCount, following, postCount);
+
+    }
 }

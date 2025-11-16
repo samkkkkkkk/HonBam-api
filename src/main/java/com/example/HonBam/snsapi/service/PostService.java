@@ -152,19 +152,6 @@ public class PostService {
         return postLikeRepository.existsById(new PostLikeId(userId, postId));
     }
 
-    // 프로필 url 생성
-    private String buildProfileUrl(User author) {
-        if (author.getLoginProvider() != LoginProvider.LOCAL) {
-            return author.getProfileImg();
-        }
-
-        if (author.getProfileImg() == null) {
-            return "/default-profile.png";
-        }
-
-        return "uploads/" + author.getProfileImg();
-    }
-
     // nickname과 profileUrl을 포함하여 DTO로 변환
     private PostResponseDTO convertToDTO(Post post, String viewerId) {
         boolean liked = isPostLikedByUser(viewerId, post.getId());
@@ -173,7 +160,7 @@ public class PostService {
                 .orElseThrow(() -> new UserNotFoundException("작성자를 찾을 수 없습니다."));
 
         String nickname = author.getNickname();
-        String profileUrl = buildProfileUrl(author);
+        String profileUrl = postUtils.buildProfileUrl(author);
 
         return PostResponseDTO.from(post, liked, nickname, profileUrl);
     }
@@ -196,7 +183,7 @@ public class PostService {
                     User author = userRepository.findById(post.getAuthorId())
                             .orElseThrow(() -> new UserNotFoundException("작성자를 찾을 수 없습니다."));
 
-                    String authorProfileUrl = buildProfileUrl(author);
+                    String authorProfileUrl = postUtils.buildProfileUrl(author);
 
                     return TodayShotResponseDTO.builder()
                             .postId(post.getId())

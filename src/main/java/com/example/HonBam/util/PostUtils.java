@@ -1,5 +1,7 @@
 package com.example.HonBam.util;
 
+import com.example.HonBam.userapi.entity.LoginProvider;
+import com.example.HonBam.userapi.entity.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,19 @@ public class PostUtils {
         } catch (JsonProcessingException e) {
             throw new RuntimeException("이미지 URL 목록을 JSON으로 변환하는 중 오류가 발생했습니다.");
         }
+    }
+
+    // 프로필 url 생성
+    public String buildProfileUrl(User author) {
+        if (author.getLoginProvider() != LoginProvider.LOCAL) {
+            return author.getProfileImg();
+        }
+
+        if (author.getProfileImg() == null) {
+            return "/default-profile.png";
+        }
+
+        return "uploads/" + author.getProfileImg();
     }
 
 }

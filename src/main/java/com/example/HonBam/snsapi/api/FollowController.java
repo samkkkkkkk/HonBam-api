@@ -1,7 +1,11 @@
 package com.example.HonBam.snsapi.api;
 
 import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.exception.UserNotFoundException;
+import com.example.HonBam.snsapi.dto.response.UserFollowResponseDTO;
 import com.example.HonBam.snsapi.service.FollowService;
+import com.example.HonBam.userapi.entity.User;
+import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +21,18 @@ import java.util.Map;
 public class FollowController {
 
     private final FollowService followService;
+
+    // 유저 프로필 정보
+    @GetMapping("/{userId}/profile")
+    public ResponseEntity<?> getSnsProfile(
+            @AuthenticationPrincipal TokenUserInfo userInfo,
+            @PathVariable(value = "userId") String targetUser
+    ) {
+        String viewerId = userInfo.getUserId();
+
+        UserFollowResponseDTO dto = followService.getSnsProfile(viewerId, targetUser);
+        return ResponseEntity.ok(dto);
+    }
 
     // 팔로우 등록
     @PostMapping("/{targetId}/follow")

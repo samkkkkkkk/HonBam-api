@@ -23,7 +23,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p " +
             "FROM Post p " +
             "WHERE p.authorId IN (" +
-            "SELECT f.id.followingId  FROM Follow f WHERE f.id.followingId  = :userId) " +
+            "SELECT f.id.followingId  FROM Follow f WHERE f.id.followerId  = :userId) " +
             "ORDER BY p.createdAt DESC")
     List<Post> findFeedPosts(String userId, Pageable pageable);
 
@@ -65,5 +65,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("end") LocalDateTime end,
             Pageable pageable
     );
+
+    long countByAuthorId(String targetId);
 
 }
