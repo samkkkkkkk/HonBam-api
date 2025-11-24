@@ -73,24 +73,42 @@ public class WebSecurityConfig {
                 .authorizeRequests(auth -> auth
                         .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 공개 API
+                        // 회원가입/로그인/중복검사/refresh
                         .antMatchers(HttpMethod.POST, "/api/auth").permitAll() // 회원가입
-                        .antMatchers("/uploads/**").permitAll()
                         .antMatchers("/api/auth/login").permitAll()
                         .antMatchers("/api/auth/check").permitAll()
                         .antMatchers("/api/auth/refresh").permitAll()
                         .antMatchers("/oauth2/**").permitAll()
-                        .antMatchers("/", "/error").permitAll()
-                        .antMatchers("/api/recipe/**").permitAll()
-                        .antMatchers("/api/freeboard/**").permitAll()
-                        .antMatchers("/api/posts/**").permitAll()
-                        .antMatchers("/ws-chat/**", "/chat/**", "/redis/**", "/chatRooms/**", "/topic/**", "/app/**").permitAll()
-                        .antMatchers("/api/sns/feed/explore").permitAll()
-                        .antMatchers("/api/sns/feed/today-shots").permitAll()
+
+                        // 공용 GET(조회)
+                        .antMatchers(HttpMethod.GET,"/uploads/**").permitAll()
+                        .antMatchers(HttpMethod.GET,"/api/recipe/**").permitAll()
+                        .antMatchers(HttpMethod.GET,"/api/freeboard/**").permitAll()
+                        .antMatchers(HttpMethod.GET,"/api/posts/**").permitAll()
+                        .antMatchers(HttpMethod.GET,"/api/sns/feed/**").permitAll()
+
+                        // swagger
                         .antMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/swagger-resources", "/webjars/**").permitAll()
 
-                        // 인증 필요
+                        // upload 관련 조회를 제외한 요청 인증
+                        .antMatchers("/uploads/**").authenticated()
+
+                        // posts - 조회만 공개
+                        .antMatchers( "/api/posts/**").authenticated()
+
+                        // freeboard - 조회만 공개
+                        .antMatchers("/api/freeboard/**").authenticated()
+
+                        // sns - 전체 보호
+                        .antMatchers("/api/sns/**").authenticated()
+
+                        // 채팅 API
                         .antMatchers("/api/chat/**").authenticated()
+
+                        // 웹소켓 handshake 도메인 인증
+                        .antMatchers("/ws-chat/**", "/chat/**", "/redis/**", "/chatRooms/**", "/topic/**", "/app/**").permitAll()
+
+                        // auth 추가 기능
                         .antMatchers("/api/auth/paypromote").authenticated()
                         .antMatchers("/api/auth/profile-image").authenticated()
                         .antMatchers("/api/auth/profile-s3").authenticated()
@@ -98,9 +116,13 @@ public class WebSecurityConfig {
                         .antMatchers("/api/auth/verify").authenticated()
                         .antMatchers("/api/auth/logout").authenticated()
                         .antMatchers("/api/auth/delete").authenticated()
+
+                        // toss 결제 시스템
                         .antMatchers("/api/tosspay/info").authenticated()
                         .antMatchers("/api/tosspay/confirm").authenticated()
-                        .antMatchers("/api/sns/**").authenticated()
+
+                        // 루트 및 에러
+                        .antMatchers("/", "/error").permitAll()
 
                         .anyRequest().authenticated()
                 )

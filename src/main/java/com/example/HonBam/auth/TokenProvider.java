@@ -6,6 +6,7 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.script.DigestUtils;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -15,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @Slf4j
@@ -22,7 +24,7 @@ import java.util.Map;
 public class TokenProvider {
 
     @Value("${jwt.secret}")
-    private String SECRET_KEY;
+    private String secretKey;
 
     @Value("${jwt.base64Secret:true}")
     private boolean base64Secret;
@@ -36,88 +38,75 @@ public class TokenProvider {
     @Value("${jwt.refresh.days:14}")
     private long refreshDays;   // 리프레시 토큰 만료(일)
 
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = Base64.getDecoder().decode(secretKey);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
 
     /** 액세스 토큰 발급 */
     public String createAccessToken(User user) {
         log.info("createAccessToken - userId: {}", user.getId());
-        return buildToken(
+        return buildJwtToken(
                 user.getId(),
                 user.getRole(),
                 "access",
-                Date.from(Instant.now().plus(accessMinutes, ChronoUnit.MINUTES))
-        );
+                Instant.now().plus(accessMinutes, ChronoUnit.MINUTES)
+                );
     }
 
-    /** 리프레시 토큰 발급 */
+    // Refresh Token 생성
     public String createRefreshToken(User user) {
-        return buildToken(
-                user.getId(),
-                user.getRole(),
-                "refresh",
-                Date.from(Instant.now().plus(refreshDays, ChronoUnit.DAYS))
-        );
+        return UUID.randomUUID().toString() + UUID.randomUUID();
     }
 
-    /** 리프레시 토큰 기반 액세스 토큰 재발급 */
-    public String createAccessTokenByInfo(TokenUserInfo info) {
-        return buildToken(
-                info.getUserId(),
-                info.getRole(),
-                "access",
-                Date.from(Instant.now().plus(accessMinutes, ChronoUnit.MINUTES))
-        );
+    // Refresh Token 저장용 해쉬 생성
+    public String hashRefreshToken(String refreshToken) {
+        return DigestUtils.sha1DigestAsHex(refreshToken);
     }
 
-    /** 액세스 토큰 검증 + 사용자 정보 추출 */
-    public TokenUserInfo validateAndGetTokenUserInfo(String token) {
-        Claims claims = parseAndValidate(token);
-        String typ = claims.get("typ", String.class);
-        if (typ != null && !"access".equals(typ)) {
-            throw new JwtException("Invalid token type: " + typ);
-        }
-        return toUserInfo(claims);
-    }
-
-    /** 리프레시 토큰 유효성 검증 */
-    public boolean validateRefreshToken(String token) {
-        try {
-            Claims claims = parseAndValidate(token);
-            String typ = claims.get("typ", String.class);
-            return "refresh".equals(typ);
-        } catch (JwtException | IllegalArgumentException e) {
-            log.warn("Refresh token validation failed: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    /** 리프레시 토큰에서 사용자 정보 추출 */
-    public TokenUserInfo parseRefreshToken(String token) {
-        Claims claims = parseAndValidate(token);
-        String typ = claims.get("typ", String.class);
-        if (!"refresh".equals(typ)) {
-            throw new JwtException("Not a refresh token");
-        }
-        return toUserInfo(claims);
-    }
-
-    // ====== 내부 유틸 ======
-
-    private String buildToken(String userId, Role role, String typ, Date expiry) {
-        Instant now = Instant.now();
-        SecretKey key = getSigningKey();
+    // JWT 생성 모듈
+    private String buildJwtToken(String userId, Role role, String typ, Instant expiry) {
 
         return Jwts.builder()
                 .setSubject(userId)               // sub = userId
                 .setIssuer(issuer)                // iss
-                .setIssuedAt(Date.from(now))      // iat
-                .setExpiration(expiry)            // exp
+                .setIssuedAt(new Date())      // iat
+                .setExpiration(Date.from(expiry))            // exp
                 .addClaims(Map.of(
                         "role", role.toString(),
                         "typ", typ
                 ))
-                .signWith(key, SignatureAlgorithm.HS512)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
+
+    // Access Token 검증
+    public TokenUserInfo validateAccessToken(String token) {
+        Claims claims = parse(token);
+
+        if (!"access".equals(claims.get("typ"))) {
+            throw new JwtException("INVALID_TOKEN_TYPE:ACCESS");
+        }
+
+        return toUserInfo(claims);
+    }
+
+    // JWT 내부 파싱(서명 + 만료 검출)
+    private Claims parse(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            throw new JwtException("TOKEN_EXPIRED");
+        } catch (JwtException e) {
+            throw new JwtException("INVALID_JWT");
+        }
+    }
+
+    //
 
     private Claims parseAndValidate(String token) {
         SecretKey key = getSigningKey();
@@ -128,14 +117,8 @@ public class TokenProvider {
                 .getBody();
     }
 
-    private SecretKey getSigningKey() {
-        if (base64Secret) {
-            byte[] bytes = Base64.getDecoder().decode(SECRET_KEY);
-            return Keys.hmacShaKeyFor(bytes);
-        }
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
-    }
 
+    // Claims -> TokenUserInfo 변환
     private TokenUserInfo toUserInfo(Claims claims) {
         return TokenUserInfo.builder()
                 .userId(claims.getSubject())
