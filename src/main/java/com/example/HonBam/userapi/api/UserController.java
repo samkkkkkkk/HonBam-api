@@ -2,11 +2,11 @@ package com.example.HonBam.userapi.api;
 
 import com.example.HonBam.auth.TokenProvider;
 import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.auth.entity.RefreshToken;
 import com.example.HonBam.auth.repository.RefreshTokenRepository;
+import com.example.HonBam.config.AuthProperties;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
-import com.example.HonBam.userapi.entity.LoginProvider;
-import com.example.HonBam.userapi.service.SocialLogoutService;
-import com.example.HonBam.util.CookieUtil;
+import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
 import com.example.HonBam.userapi.dto.response.LoginResponseDTO;
@@ -14,7 +14,9 @@ import com.example.HonBam.userapi.dto.response.UserInfoResponseDTO;
 import com.example.HonBam.userapi.dto.response.UserSignUpResponseDTO;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
+import com.example.HonBam.userapi.service.SocialLogoutService;
 import com.example.HonBam.userapi.service.UserService;
+import com.example.HonBam.util.CookieUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -22,7 +24,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.validation.BindingResult;
@@ -35,7 +36,9 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @Slf4j
@@ -45,12 +48,14 @@ public class UserController {
 
     private final UserService userService;
     private final TokenProvider tokenProvider;
+    private final AuthProperties authProperties;
     private final CookieUtil cookieUtil;
     private final SocialLogoutService socialLogoutService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final UserRepository userRepository;
 
+    // 이메일 중복 체크
     @GetMapping("/check")
     public ResponseEntity<?> check(@RequestParam(value = "value") String value, @RequestParam(value = "target") String target) {
         if (target.trim().isEmpty()) {
@@ -61,6 +66,7 @@ public class UserController {
         return ResponseEntity.ok().body(resultFlag);
     }
 
+    // 회원가입
     @PostMapping
     public ResponseEntity<?> signUp(@Validated @RequestPart("user") UserRequestSignUpDTO dto, @RequestPart(value = "profileImage", required = false) MultipartFile profileImg, BindingResult result) {
         log.info("/api/auth POST! - {}", dto);
@@ -86,17 +92,36 @@ public class UserController {
         }
     }
 
+    // 로그인
     @PostMapping("/login")
     public ResponseEntity<?> signIn(@Validated @RequestBody LoginRequestDTO dto) {
         User user = userService.authenticate(dto);
+
         String access = tokenProvider.createAccessToken(user);
         String refresh = tokenProvider.createRefreshToken(user);
+        String refreshHash = tokenProvider.hashRefreshToken(refresh);
+
+        // DB 저장
+        RefreshToken refreshToken = RefreshToken.builder()
+                .userId(user.getId())
+                .tokenHash(refreshHash)
+                .revoked(false)
+                .expiredAt(LocalDateTime.now().plusDays(authProperties.getToken().getRefreshExpireDays()))
+                .deviceInfo("local-login")
+                .build();
+        refreshTokenRepository.save(refreshToken);
+
+        // Redis 저장
+        redisTemplate.opsForValue()
+                .set("refresh:" + refreshHash, user.getId(), authProperties.getToken().getRefreshExpireDuration());
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookieUtil.createHttpOnly("access_token", access, Duration.ofMinutes(15)).toString())
-                .header(HttpHeaders.SET_COOKIE, cookieUtil.createHttpOnly("refresh_token", refresh, Duration.ofDays(14)).toString())
+                .header(HttpHeaders.SET_COOKIE, cookieUtil.createAccessCookie(access).toString())
+                .header(HttpHeaders.SET_COOKIE, cookieUtil.createRefreshCookie(refresh).toString())
                 .body(new LoginResponseDTO(user));
     }
 
+    // 외원 등급 승급
     @PutMapping("/paypromote")
     @PreAuthorize("hasRole('ROLE_COMMON')")
     public ResponseEntity<?> paypromote(@AuthenticationPrincipal TokenUserInfo userInfo) {
@@ -114,6 +139,7 @@ public class UserController {
         }
     }
 
+    // 프로필 이미지 요처
     @GetMapping("/profile-image")
     public ResponseEntity<?> loadFile(@AuthenticationPrincipal TokenUserInfo userInfo) {
         log.info("/api/auth/load-profile - GET!, user: {}", userInfo.getUserId());
@@ -140,6 +166,7 @@ public class UserController {
         }
     }
 
+    // 확장자 미디어 파일 추출
     private MediaType findExtensionAndGetMediaType(String filePath) {
         String ext = filePath.substring(filePath.lastIndexOf(".") + 1);
         switch (ext.toUpperCase()) {
@@ -150,6 +177,7 @@ public class UserController {
         }
     }
 
+    // 로그인 유효 검사
     @GetMapping("/verify")
     public ResponseEntity<?> verify(@AuthenticationPrincipal TokenUserInfo userInfo) {
         if (userInfo == null) {
@@ -160,36 +188,31 @@ public class UserController {
         return ResponseEntity.ok(dto);
     }
 
+    // 카카오 로그인 요청
     @GetMapping("/kakaoLogin")
     public ResponseEntity<?> kakaoLogin(String code) {
         LoginResponseDTO responseDTO = userService.kakaoService(code);
         return ResponseEntity.ok().body(responseDTO);
     }
 
+    // 로그아웃 요청
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response, Authentication authentication) {
+    public ResponseEntity<?> logout(
+            @AuthenticationPrincipal TokenUserInfo userInfo,
+            HttpServletResponse response) {
         log.info("로그아웃 요청이 들어옴");
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.delete("access_token").toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.delete("refresh_token").toString());
 
-        TokenUserInfo principal = (TokenUserInfo) authentication.getPrincipal();
-        socialLogoutService.invalidateUserTokens(principal.getUserId());
+        // Refresh Token 전부 폐기
+        socialLogoutService.invalidateUserTokens(userInfo.getUserId());
 
-        User user = userRepository.findById(principal.getUserId()).orElseThrow();
-        if (user.getLoginProvider() == LoginProvider.KAKAO) {
-            String key = "social:token:" + user.getId();
-            Object accessTokenObj = redisTemplate.opsForHash().get(key, "accessToken");
-            if (accessTokenObj != null) {
-                socialLogoutService.loginFromKakao(accessTokenObj.toString());
-            }
-            redisTemplate.delete(key);
-        } else if (user.getLoginProvider() == LoginProvider.NAVER) {
-            String naverLoginUrl = socialLogoutService.getNaverLogout("http://localhost:3000");
-            return ResponseEntity.ok(Map.of("redirectUrl", naverLoginUrl));
-        }
-        return ResponseEntity.ok(Map.of("success", true, "message", "logout success"));
+        // 쿠기 제거
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteAccessCookie().toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteRefreshCookie().toString());
+
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
+    // 회원 탈퇴 요청
     @DeleteMapping("/delete")
     public ResponseEntity<?> deleteUser(@AuthenticationPrincipal TokenUserInfo userInfo) {
         log.info("/api/auth DELETE! - user: {}", userInfo.getUserId());
@@ -203,6 +226,7 @@ public class UserController {
         }
     }
 
+    // 프로필 이미지 s3 요청
     @GetMapping("/profile-s3")
     public ResponseEntity<?> s3Profile(@AuthenticationPrincipal TokenUserInfo userInfo) {
         try {
@@ -214,6 +238,7 @@ public class UserController {
         }
     }
 
+    // 유저 정보 요청
     @GetMapping("/userinfo")
     public ResponseEntity<?> userInfo(@AuthenticationPrincipal TokenUserInfo userInfo) {
         log.info("userinfo 요청!");
@@ -221,14 +246,70 @@ public class UserController {
         return ResponseEntity.ok().body(responseDto);
     }
 
+    // refresh toke 재발급 요청
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest req) {
-        String r = extractCookie(req,"refresh_token");
-        if (r == null || !tokenProvider.validateRefreshToken(r)) return ResponseEntity.status(401).build();
-        var info = tokenProvider.parseRefreshToken(r);
-        String newAccess = tokenProvider.createAccessTokenByInfo(info);
+
+        String refresh = extractCookie(req, "refresh_token");
+        if (refresh == null) {
+            return ResponseEntity.status(401).body("NOT_REFRESH_TOKEN");
+        }
+
+        String refreshHash = tokenProvider.hashRefreshToken(refresh);
+        String redisKey = "refresh:" + refreshHash;
+
+        // Redis 조회
+        boolean redisFail = false;
+        String userId = null;
+
+        try {
+            Object userIdObj = redisTemplate.opsForValue().get(redisKey);
+            if (userIdObj != null) {
+                userId = userIdObj.toString();
+            }
+        } catch (Exception e) {
+            redisFail = true;
+            log.warn("Redis 서버 연동 실패 {}", e.getMessage());
+        }
+
+        if (!redisFail && userId == null) {
+            return ResponseEntity.status(401).body("INVALID_REFRESH_TOKEN");
+        }
+        
+        // DB 검증
+        RefreshToken rt = refreshTokenRepository.findByTokenHash(refreshHash)
+                .orElse(null);
+        if (rt == null || rt.isRevoked()) {
+            return ResponseEntity.status(401).body("REFRESH_TOKEN_REVOKED");
+        }
+
+        if (rt.getExpiredAt().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(401).body("REFRESH_TOKEN_EXPIRED");
+        }
+
+        if (userId == null) {
+            userId = rt.getUserId();
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+        
+        // 새로운 access token 발급
+        String newAccess = tokenProvider.createAccessToken(user);
+
+        if (redisFail) {
+            try {
+                redisTemplate.opsForValue()
+                        .set(redisKey, userId, authProperties.getToken().getRefreshExpireDuration());
+                log.info("Redis 복구 완료");
+            } catch (Exception e) {
+                log.warn("Redis 저장 실패 {}", e.getMessage());
+            }
+        }
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookieUtil.createHttpOnly("access_token", newAccess, Duration.ofMinutes(15)).toString())
+                .header(HttpHeaders.SET_COOKIE,
+                        cookieUtil.createAccessCookie(newAccess).toString())
                 .build();
     }
 

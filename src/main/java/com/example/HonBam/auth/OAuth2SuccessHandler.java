@@ -2,6 +2,7 @@ package com.example.HonBam.auth;
 
 import com.example.HonBam.auth.entity.RefreshToken;
 import com.example.HonBam.auth.repository.RefreshTokenRepository;
+import com.example.HonBam.config.AuthProperties;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.util.CookieUtil;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final RedisTemplate<String, Object> redisTemplate;
     private final RefreshTokenRepository refreshTokenRepository;
     private final OAuth2AuthorizedClientService clientService;
+    private final AuthProperties authProperties;
 
     @Value("${app.oauth2.redirect.success}")
     private String successRedirectUrl;
@@ -50,25 +52,27 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         CustomOAuth2User principal = (CustomOAuth2User) authentication.getPrincipal();
         User user = principal.getUser();
 
-        // 1. JWT 발급( TokenProvider 시그니처 사용)
+        // 1. Access Token -> JWT 기반 생성
         String access = tokenProvider.createAccessToken(user);
-        String refresh = tokenProvider.createRefreshToken(user);
 
-        // 2. RefreshToken hash를 DB 저장
-        String refreshHash = DigestUtils.sha256Hex(refresh);
+        // 2. Refresh Token 난수 기반 생성
+        String refresh = tokenProvider.createRefreshToken(user);
+        String refreshHash = tokenProvider.hashRefreshToken(refresh);
+
+        // 3. RefreshToken hash를 DB 저장
         RefreshToken entity = RefreshToken.builder()
                 .userId(user.getId())
                 .tokenHash(refreshHash)
                 .revoked(false)
-                .expiredAt(LocalDateTime.now().plusDays(14))
+                .expiredAt(LocalDateTime.now().plus(authProperties.getToken().getRefreshExpireDuration()))
                 .deviceInfo("User-Agent")
                 .build();
         refreshTokenRepository.save(entity);
 
-        // 3. RefreshToken Redis 저장
-        redisTemplate.opsForValue().set("refresh:" + refresh, user.getId(), 14, TimeUnit.DAYS);
+        // 4. RefreshToken Redis 저장
+        redisTemplate.opsForValue().set("refresh:" + refreshHash, user.getId(), authProperties.getToken().getRefreshExpireDuration());
 
-        // 4.SNS AccessToken Redis 저장
+        // 5.SNS AccessToken Redis 저장
         if (authentication instanceof OAuth2AuthenticationToken) {
             OAuth2AuthenticationToken oauth2Token = (OAuth2AuthenticationToken) authentication;
             OAuth2AuthorizedClient client =
@@ -103,13 +107,13 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             }
         }
         
-        // 5. JWT 쿠키 저장
+        // 6. JWT 쿠키 저장
         response.addHeader(HttpHeaders.SET_COOKIE,
-                cookieUtil.createHttpOnly("access_token", access, Duration.ofMinutes(15)).toString());
+                cookieUtil.createAccessCookie( access).toString());
         response.addHeader(HttpHeaders.SET_COOKIE,
-                cookieUtil.createHttpOnly("refresh_token", refresh, Duration.ofDays(14)).toString());
+                cookieUtil.createRefreshCookie(refreshHash).toString());
 
-        // 3. 프론트로 리다이렉트
+        // 7. 프론트로 리다이렉트
         response.sendRedirect(successRedirectUrl);
     }
 }

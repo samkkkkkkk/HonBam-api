@@ -59,7 +59,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         try {
-            TokenUserInfo info = tokenProvider.validateAndGetTokenUserInfo(token);
+            TokenUserInfo info = tokenProvider.validateAccessToken(token);
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(

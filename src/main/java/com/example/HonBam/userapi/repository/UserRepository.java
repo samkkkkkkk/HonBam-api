@@ -1,5 +1,6 @@
 package com.example.HonBam.userapi.repository;
 
+import com.example.HonBam.userapi.entity.LoginProvider;
 import com.example.HonBam.userapi.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -21,6 +22,7 @@ public interface UserRepository
 
     // 특정 ID를 제외한 모든 사용자 조회
     List<User> findAllByIdNot(String id);
+
 
 }
 

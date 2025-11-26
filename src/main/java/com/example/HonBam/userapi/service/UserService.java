@@ -2,6 +2,9 @@ package com.example.HonBam.userapi.service;
 
 import com.example.HonBam.auth.TokenProvider;
 import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.auth.entity.RefreshToken;
+import com.example.HonBam.auth.repository.RefreshTokenRepository;
+import com.example.HonBam.config.AuthProperties;
 import com.example.HonBam.exception.DuplicateEmailException;
 import com.example.HonBam.exception.InvalidPasswordException;
 import com.example.HonBam.exception.UserNotFoundException;
@@ -17,6 +20,7 @@ import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -30,6 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -41,6 +46,9 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final AuthProperties authProperties;
 
     @Value("${kakao.client_id}")
     private String KAKAO_CLIENT_ID;
@@ -140,6 +148,24 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
         String token = tokenProvider.createAccessToken(foundUser);
+
+        String refresh = tokenProvider.createRefreshToken(foundUser);
+        String refreshHash = tokenProvider.hashRefreshToken(refresh);
+
+        // DB에 저장
+        RefreshToken refreshToken = RefreshToken.builder()
+                .userId(foundUser.getId())
+                .tokenHash(refreshHash)
+                .revoked(false)
+                .expiredAt(LocalDateTime.now().plus(authProperties.getToken().getRefreshExpireDuration()))
+                .deviceInfo("kakao-login")
+                .build();
+        refreshTokenRepository.save(refreshToken);
+
+        // Redis 저장
+        redisTemplate.opsForValue()
+                .set("refresh:" + refreshHash, foundUser.getId(), authProperties.getToken().getRefreshExpireDuration());
+
         userRepository.save(foundUser);
         return new LoginResponseDTO(foundUser);
     }
@@ -173,20 +199,6 @@ public class UserService {
         return (Map<String, Object>)responseEntity.getBody();
     }
 
-    public String logout(TokenUserInfo userInfo) {
-        User foundUser = findUserByToken(userInfo);
-        String accessToken = foundUser.getAccessToken();
-        if(accessToken != null) {
-            String reqUri = "https://kapi.kakao.com/v1/user/logout";
-            HttpHeaders headers = new HttpHeaders();
-            headers.add("Authorization", "Bearer " + accessToken);
-
-            RestTemplate template = new RestTemplate();
-            ResponseEntity<String> responseData = template.exchange(reqUri, HttpMethod.POST, new HttpEntity<>(headers), String.class);
-            return responseData.getBody();
-        }
-        return null;
-    }
 
     public void delete(String userId) {
         User user = userRepository.findById(userId)

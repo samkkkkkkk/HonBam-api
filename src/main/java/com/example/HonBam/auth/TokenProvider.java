@@ -1,16 +1,17 @@
 package com.example.HonBam.auth;
 
+import com.example.HonBam.config.AuthProperties;
 import com.example.HonBam.userapi.entity.Role;
 import com.example.HonBam.userapi.entity.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.script.DigestUtils;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Component
+@RequiredArgsConstructor
 @Slf4j
 // 역할: 토큰 발급 및 검증
 public class TokenProvider {
@@ -32,26 +34,25 @@ public class TokenProvider {
     @Value("${jwt.issuer:HonBam}")
     private String issuer;
 
-    @Value("${jwt.access.minutes:15}")
-    private long accessMinutes; // 액세스 토큰 만료(분)
-
-    @Value("${jwt.refresh.days:14}")
-    private long refreshDays;   // 리프레시 토큰 만료(일)
-
     private SecretKey getSigningKey() {
         byte[] keyBytes = Base64.getDecoder().decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
+    private final AuthProperties authProperties;
+
     /** 액세스 토큰 발급 */
     public String createAccessToken(User user) {
+
+        Instant now = Instant.now();
+        Instant expiry = now.plus(authProperties.getToken().getAccessExpireDuration());
+
         log.info("createAccessToken - userId: {}", user.getId());
         return buildJwtToken(
                 user.getId(),
                 user.getRole(),
                 "access",
-                Instant.now().plus(accessMinutes, ChronoUnit.MINUTES)
-                );
+                expiry);
     }
 
     // Refresh Token 생성
@@ -106,18 +107,6 @@ public class TokenProvider {
         }
     }
 
-    //
-
-    private Claims parseAndValidate(String token) {
-        SecretKey key = getSigningKey();
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-    }
-
-
     // Claims -> TokenUserInfo 변환
     private TokenUserInfo toUserInfo(Claims claims) {
         return TokenUserInfo.builder()
@@ -125,4 +114,6 @@ public class TokenProvider {
                 .role(Role.valueOf(claims.get("role", String.class)))
                 .build();
     }
+
+
 }
