@@ -1,60 +1,75 @@
 package com.example.HonBam.util;
 
+import com.example.HonBam.config.AuthProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
 @Component
+@RequiredArgsConstructor
 public class CookieUtil {
-    // application.yml에서 주입해서 운영/개발 분기 가능
-    @Value("${app.cookie.secure:true}")   // 운영은 true, 로컬 테스트시 false 설정 가능
-    private boolean secure;
+    private final AuthProperties authProperties;
 
-    @Value("${app.cookie.same-site:None}") // 크로스 도메인이면 None 권장
-    private String sameSite;
+    public ResponseCookie createAccessCookie(String value) {
+        AuthProperties.CookieSetting access = authProperties.getCookie().getAccess();
 
-    @Value("${app.cookie.path:/}")
-    private String path;
+        Duration duration =
+                (access.getMaxAgeMinutes() != null)
+                        ? Duration.ofMinutes(access.getMaxAgeMinutes())
+                        : Duration.ZERO;
 
-    @Value("${app.cookie.domain:}") // 필요 시 .example.com 처럼 지정, 기본은 빈값(호스트 스코프)
-    private String domain;
-
-    public ResponseCookie create(String name, String value, Duration maxAge, boolean httpOnly) {
-        ResponseCookie.ResponseCookieBuilder b = ResponseCookie.from(name, value)
-                .httpOnly(httpOnly)
-                .secure(secure)
-                .sameSite(sameSite)
-                .path(path)
-                .maxAge(maxAge);
-
-        if (domain != null && !domain.isBlank()) {
-            b.domain(domain);
-        }
-        return b.build();
+        return ResponseCookie.from("access_token", value)
+                .httpOnly(access.isHttpOnly())
+                .secure(access.isSecure())
+                .sameSite(access.getSameSite())
+                .path(access.getPath())
+                .maxAge(duration)
+                .build();
     }
 
-    public ResponseCookie createHttpOnly(String name, String value, Duration maxAge) {
-        return create(name, value, maxAge, true);
+
+    public ResponseCookie createRefreshCookie(String token) {
+        AuthProperties.CookieSetting refresh = authProperties.getCookie().getRefresh();
+        Duration duration =
+                (refresh.getMaxAgeDays() != null)
+                        ? Duration.ofDays(refresh.getMaxAgeDays())
+                        : Duration.ZERO;
+
+        return ResponseCookie.from("refresh_token", token)
+                .maxAge(duration)
+                .httpOnly(refresh.isHttpOnly())
+                .secure(refresh.isSecure())
+                .sameSite(refresh.getSameSite())
+                .path(refresh.getPath())
+                .build();
     }
 
-    public ResponseCookie createReadable(String name, String value, Duration maxAge) {
-        // 비 HttpOnly 쿠키(XSRF-TOKEN 등)
-        return create(name, value, maxAge, false);
+    public ResponseCookie deleteAccessCookie() {
+        AuthProperties.CookieSetting access = authProperties.getCookie().getAccess();
+
+        return ResponseCookie.from("access_token", "")
+                .httpOnly(access.isHttpOnly())
+                .secure(access.isSecure())
+                .sameSite(access.getSameSite())
+                .path(access.getPath())
+                .maxAge(0)
+                .build();
     }
 
-    public ResponseCookie delete(String name) {
-        ResponseCookie.ResponseCookieBuilder b = ResponseCookie.from(name, "")
-                .httpOnly(true)
-                .secure(secure)
-                .sameSite(sameSite)
-                .path(path)
-                .maxAge(0);
-        if (domain != null && !domain.isBlank()) {
-            b.domain(domain);
-        }
-        return b.build();
+    public ResponseCookie deleteRefreshCookie() {
+        AuthProperties.CookieSetting refresh = authProperties.getCookie().getRefresh();
+
+        return ResponseCookie.from("refresh_token", "")
+                .httpOnly(refresh.isHttpOnly())
+                .secure(refresh.isSecure())
+                .sameSite(refresh.getSameSite())
+                .path(refresh.getPath())
+                .maxAge(0)
+                .build();
     }
 
 }
