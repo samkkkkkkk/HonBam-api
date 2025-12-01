@@ -6,18 +6,13 @@ import com.example.HonBam.chatapi.dto.request.InviteUserRequest;
 import com.example.HonBam.chatapi.dto.response.ChatRoomListResponseDTO;
 import com.example.HonBam.chatapi.dto.response.ChatRoomResponse;
 import com.example.HonBam.chatapi.dto.response.OpenChatRoomResponseDTO;
-import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.chatapi.service.ChatRoomService;
-import com.nimbusds.openid.connect.sdk.claims.UserInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -80,16 +75,6 @@ public class ChatRoomController {
         chatRoomService.inviteUser(roomUuid, userInfo.getUserId(), request.getTargetUserIds());
         return ResponseEntity.ok("초대 성공");
     }
-
-//    // 자유입장 방식
-//    @PostMapping("/{roomId}/join")
-//    public ResponseEntity<?> joinOpenRoom(
-//            @AuthenticationPrincipal TokenUserInfo userInfo,
-//            @PathVariable String roomUuid
-//    ) {
-//        chatRoomService.joinOpenRoom(roomUuid, userInfo.getUserId());
-//        return ResponseEntity.ok("참여완료");
-//    }
 
     // 오픈 채팅방 리스트
     @GetMapping("/open")

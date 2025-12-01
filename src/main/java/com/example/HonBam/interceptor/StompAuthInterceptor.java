@@ -1,6 +1,7 @@
 package com.example.HonBam.interceptor;
 
 import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.chatapi.dto.WsTicket;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -14,7 +15,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
 import java.util.Collections;
 
 @Component
@@ -22,42 +22,51 @@ import java.util.Collections;
 @Slf4j
 public class StompAuthInterceptor implements ChannelInterceptor {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, WsTicket> wsTicketRedisTemplate;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
             String ticket = accessor.getFirstNativeHeader("ticket");
 
-            if (ticket != null) {
-                String key = "ws:ticket:" + ticket;
-                Object userId = redisTemplate.opsForValue().get(key);
-                redisTemplate.delete(key);
-                if (userId != null) {
-                    // 티켓은 일회성이므로 즉시 제거
-                    redisTemplate.delete(key);
-
-                    TokenUserInfo userInfo = new TokenUserInfo(userId.toString(), null);
-
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userInfo, null,
-                                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                            );
-                    accessor.setUser(authentication);
-
-                    log.info("STOMP CONNECT 인증 성공: {}", userId);
-                } else {
-                    log.warn("STOMP CONNECT: 유효하지 않은 티켓 {}", ticket);
-                    throw new SecurityException("Invalid or expired ticket");
-                }
-            } else {
+            if (ticket == null || ticket.isBlank()) {
                 log.warn("STOMP CONNECT: 티켓 없음");
                 throw new SecurityException("No ticket provided");
             }
+
+            String key = "ws:ticket:" + ticket;
+            log.info("레디스 키: {}",key);
+            WsTicket wsTicket = wsTicketRedisTemplate.opsForValue().get(key);
+            wsTicketRedisTemplate.delete(key);
+
+            if (wsTicket == null) {
+                log.warn("STOMP CONNECT: 유효하지 않은 티켓 {}", ticket);
+                throw new SecurityException("Invalid or expired ticket");
+            }
+
+
+            if (wsTicket.getTicket() == null || !wsTicket.getTicket().equals(ticket)) {
+                log.warn("STOMP CONNECT: 티켓 uuid 불일치 ticket: {} wsTicket: {}",ticket, wsTicket.getTicket());
+            }
+
+            if (wsTicket.getUserId() == null) {
+                log.warn("STOMP CONNECT: 티켓에 userId 없음: {}", ticket);
+                throw new SecurityException("Invalid payload ticket");
+            }
+            String userId = wsTicket.getUserId();
+
+            TokenUserInfo userInfo = new TokenUserInfo(userId, null);
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    userInfo, null,
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+            );
+
+            accessor.setUser(authentication);
+            log.info("STOMP CONNECT 인증 성공: {}", userId);
         }
+
         return message;
     }
 }

@@ -7,6 +7,7 @@ import com.example.HonBam.chatapi.dto.request.ChatMessageRequest;
 import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.chatapi.service.ChatMessageService;
+import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,13 +39,8 @@ public class ChatMessageController {
     @GetMapping
     public ResponseEntity<List<ChatMessageResponseDTO>> getMessages(
             @RequestParam("roomUuid") String roomUuid,
-            Principal principal
+            @AuthenticationPrincipal TokenUserInfo userInfo
     ) {
-        if (principal instanceof UsernamePasswordAuthenticationToken) {
-            TokenUserInfo user = (TokenUserInfo)
-                    ((UsernamePasswordAuthenticationToken) principal).getPrincipal();
-            log.info("메시지 목록 요청: roomUuid={}, userId{}", roomUuid, user.getUserId());
-        }
 
         List<ChatMessageResponseDTO> messages = chatMessageService.getMessagesByRoom(roomUuid);
         return ResponseEntity.ok(messages);
@@ -69,7 +65,7 @@ public class ChatMessageController {
             @RequestParam("roomUuid") String roomUuid,
             @RequestParam(value = "cursor", required = false) String cursor,
             @RequestParam(defaultValue = "30") int size,
-            Principal principal
+            @AuthenticationPrincipal TokenUserInfo userInfo
     ) {
         LocalDateTime cursorTime = null;
         if (cursor != null && !cursor.isBlank()) {
@@ -89,7 +85,7 @@ public class ChatMessageController {
         }
 
         TokenUserInfo user = (TokenUserInfo) ((UsernamePasswordAuthenticationToken) principal).getPrincipal();
-        User sender = userRepository.findById(user.getUserId()).orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        User sender = userRepository.findById(user.getUserId()).orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
         chatMessageService.saveMessage(request, sender.getId(), sender.getNickname());
     }

@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class WsTicketController {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, WsTicket> wsTicketRedisTemplate;
 
     @PostMapping("/ws-ticket")
     public ResponseEntity<?> issueTicket(@AuthenticationPrincipal TokenUserInfo user) {
@@ -41,7 +41,7 @@ public class WsTicketController {
 
         // Redis에 저장 (30초 TTL)
         String key = "ws:ticket:" + ticket;
-        redisTemplate.opsForValue().set(key, wsTicket.getUserId(), 30, TimeUnit.SECONDS);
+        wsTicketRedisTemplate.opsForValue().set(key, wsTicket, 30, TimeUnit.SECONDS);
         log.info("티켓 발급: {} -> {}", ticket, user.getUserId());
 
         return ResponseEntity.ok(Map.of("ticket", ticket));
