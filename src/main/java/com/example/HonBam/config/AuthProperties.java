@@ -33,6 +33,14 @@ public class AuthProperties {
     public static class Cookie {
         private final CookieSetting access = new CookieSetting();
         private final CookieSetting refresh = new CookieSetting();
+
+        public Duration getACookieAccessMaxAge() {
+            return Duration.ofMinutes(access.maxAgeMinutes);
+        }
+
+        public Duration getCookieRefreshMaxAge() {
+            return Duration.ofDays(refresh.maxAgeDays);
+        }
     }
 
 

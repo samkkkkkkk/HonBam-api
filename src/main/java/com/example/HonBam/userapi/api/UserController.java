@@ -246,7 +246,7 @@ public class UserController {
         return ResponseEntity.ok().body(responseDto);
     }
 
-    // refresh toke 재발급 요청
+    // refresh token 재발급 요청
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest req) {
 
@@ -293,6 +293,9 @@ public class UserController {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 기존 refreshToken 사용 완료 처리
+        rt.revoke();
         
         // 새로운 access token 발급
         String newAccess = tokenProvider.createAccessToken(user);
@@ -307,9 +310,36 @@ public class UserController {
             }
         }
 
+        String refreshToken = tokenProvider.createRefreshToken(user);
+        String newRefreshHash = tokenProvider.hashRefreshToken(refreshToken);
+        String newRedisKey = "refresh:" + newRefreshHash;
+
+        if (!redisFail) {
+            try {
+                redisTemplate.delete(redisKey);
+                redisTemplate.opsForValue()
+                        .set(newRedisKey, userId, authProperties.getToken().getRefreshExpireDuration());
+            } catch (Exception e) {
+                log.warn("Redis 저장 실패 {}", e.getMessage());
+
+            }
+        }
+
+        // DB에 새 refresh 저장
+        RefreshToken newRefresh = RefreshToken.builder()
+                .id(user.getId())
+                .tokenHash(newRefreshHash)
+                .revoked(false)
+                .expiredAt(LocalDateTime.now().plus(authProperties.getToken().getRefreshExpireDuration()))
+                .deviceInfo("local-login")
+                .build();
+        refreshTokenRepository.save(newRefresh);
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE,
                         cookieUtil.createAccessCookie(newAccess).toString())
+                .header(HttpHeaders.SET_COOKIE,
+                        cookieUtil.createRefreshCookie(refreshToken).toString())
                 .build();
     }
 
