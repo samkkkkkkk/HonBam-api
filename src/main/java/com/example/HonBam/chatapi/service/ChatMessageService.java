@@ -9,6 +9,7 @@ import com.example.HonBam.chatapi.entity.ChatRoomUser;
 import com.example.HonBam.chatapi.repository.ChatMessageRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
+import com.example.HonBam.exception.ChatRoomNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -115,11 +116,11 @@ public class ChatMessageService {
 
     // Cursor Before 방식
     @Transactional
-    public List<ChatMessageResponseDTO> getMessagesCursor(String roomUuid, LocalDateTime cursorTime, int limit) {
+    public List<ChatMessageResponseDTO> getMessagesCursor(String roomUuid, Long cursorId, int limit) {
         ChatRoom room = chatRoomRepository.findByRoomUuid(roomUuid)
-                .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ChatRoomNotFoundException("채팅방을 찾을 수 없습니다."));
 
-        List<ChatMessage> messages = chatMessageRepository.findMessagesBefore(room.getId(), cursorTime, limit);
+        List<ChatMessage> messages = chatMessageRepository.findMessagesBefore(room.getId(), cursorId, limit);
         return mapMessageWithUnreadCount(messages, room.getId());
     }
 

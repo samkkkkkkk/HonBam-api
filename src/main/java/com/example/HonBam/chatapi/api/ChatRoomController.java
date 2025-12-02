@@ -3,6 +3,7 @@ package com.example.HonBam.chatapi.api;
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.chatapi.dto.request.CreateRoomRequest;
 import com.example.HonBam.chatapi.dto.request.InviteUserRequest;
+import com.example.HonBam.chatapi.dto.response.ChatJoinResponse;
 import com.example.HonBam.chatapi.dto.response.ChatRoomListResponseDTO;
 import com.example.HonBam.chatapi.dto.response.ChatRoomResponse;
 import com.example.HonBam.chatapi.dto.response.OpenChatRoomResponseDTO;
@@ -46,13 +47,8 @@ public class ChatRoomController {
             @RequestParam("roomUuid") String roomUuid,
             @AuthenticationPrincipal TokenUserInfo userInfo
     ) {
-        if (userInfo == null) {
-            log.warn("[CHAT JOIN API] 인증되지 않은 사용자 접근");
-            return ResponseEntity.status(401).body("인증되지 않은 사용자 입니다.");
-        }
-
-//        chatRoomService.markAllAsReadOnJoin(roomUuid, userInfo.getUserId());
-        return ResponseEntity.ok().build();
+        ChatJoinResponse dto = chatRoomService.joinRoom(roomUuid, userInfo.getUserId());
+        return ResponseEntity.ok().body(dto);
     }
 
     // 1대1 채팅 시작
@@ -66,7 +62,7 @@ public class ChatRoomController {
     }
 
     // 초대 방식
-    @PostMapping("/{roomId}/invite")
+    @PostMapping("/{roomUuId}/invite")
     public ResponseEntity<?> inviteUser(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable String roomUuid,

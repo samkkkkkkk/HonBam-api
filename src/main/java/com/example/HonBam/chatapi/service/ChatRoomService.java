@@ -3,6 +3,7 @@ package com.example.HonBam.chatapi.service;
 import com.example.HonBam.chatapi.component.ChatEventBroadcaster;
 import com.example.HonBam.chatapi.dto.ChatReadEvent;
 import com.example.HonBam.chatapi.dto.request.CreateRoomRequest;
+import com.example.HonBam.chatapi.dto.response.ChatJoinResponse;
 import com.example.HonBam.chatapi.dto.response.ChatRoomListResponseDTO;
 import com.example.HonBam.chatapi.dto.response.ChatRoomResponse;
 import com.example.HonBam.chatapi.dto.response.OpenChatRoomResponseDTO;
@@ -17,7 +18,6 @@ import com.example.HonBam.exception.ChatRoomValidationException;
 import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.userapi.repository.UserRepository;
-import com.example.HonBam.util.UserUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -469,4 +469,37 @@ public class ChatRoomService {
         broadcaster.broadcastRoomSummaryForParticipants(room, participants, unreadMap, null);
     }
 
+    @Transactional
+    public ChatJoinResponse joinRoom(String roomUuid, String userId) {
+        ChatRoom room = chatRoomRepository.findByRoomUuid(roomUuid)
+                .orElseThrow(() -> new ChatRoomNotFoundException("채팅방이 존재하지 않습니다."));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+
+        Optional<ChatRoomUser> optCru = chatRoomUserRepository.findByRoomAndUser(room, user);
+
+        ChatRoomUser cru;
+
+        if (room.isOpen() && room.isAllowJoinAll()) {
+            cru = optCru.orElseGet(() ->
+                    chatRoomUserRepository.save(
+                            ChatRoomUser.builder()
+                                    .room(room)
+                                    .user(user)
+                                    .build()
+                    ));
+        } else {
+            cru = optCru.orElseThrow(() -> new ChatRoomAccessException("참여자가 아닙니다."));
+        }
+
+        // 유저의 마지막 읽은 위치
+        Long lastReadMessageId = cru.getLastReadMessageId();
+
+        return ChatJoinResponse.builder()
+                .roomUuid(roomUuid)
+                .lastReadMessageId(lastReadMessageId)
+                .build();
+
+    }
 }

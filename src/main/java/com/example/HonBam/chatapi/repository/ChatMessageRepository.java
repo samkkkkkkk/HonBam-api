@@ -48,11 +48,11 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 
     @Query(value = "SELECT * FROM chat_message " +
             "WHERE room_id = :roomId " +
-            "AND (:cursorTime IS NULL OR timestamp < :cursorTime) " +
-            "ORDER BY timestamp DESC " +
+            "AND (:cursorId IS NULL OR id < :cursorId) " +
+            "ORDER BY id DESC " +
             "LIMIT :limit", nativeQuery = true)
     List<ChatMessage> findMessagesBefore(@Param("roomId") Long roomId,
-                                         @Param("cursorTime") LocalDateTime cursorTime,
+                                         @Param("cursorId") Long cursorId,
                                          @Param("limit") int limit);
 
     @Query("SELECT m.id from ChatMessage m WHERE m.room.id = :roomId AND m.id <= :lastId AND m.senderId <> :userId")

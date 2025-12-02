@@ -63,16 +63,12 @@ public class ChatMessageController {
     @GetMapping("/cursor")
     public ResponseEntity<List<ChatMessageResponseDTO>> getMessagesCursor(
             @RequestParam("roomUuid") String roomUuid,
-            @RequestParam(value = "cursor", required = false) String cursor,
+            @RequestParam(value = "cursorId", required = false) Long cursorId,
             @RequestParam(defaultValue = "30") int size,
             @AuthenticationPrincipal TokenUserInfo userInfo
     ) {
-        LocalDateTime cursorTime = null;
-        if (cursor != null && !cursor.isBlank()) {
-            cursorTime = LocalDateTime.parse(cursor);
-        }
 
-        List<ChatMessageResponseDTO> messages = chatMessageService.getMessagesCursor(roomUuid, cursorTime, size);
+        List<ChatMessageResponseDTO> messages = chatMessageService.getMessagesCursor(roomUuid, cursorId, size);
         return ResponseEntity.ok(messages);
     }
 
