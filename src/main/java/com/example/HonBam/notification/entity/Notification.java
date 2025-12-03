@@ -12,11 +12,15 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(
-        name = "sns_notification",
+        name = "notifications",
         indexes = {
-                @Index(name = "idx_receiver_id", columnList = "receiver_id") // 인덱스 추가
+                @Index(name = "idx_notification_receiver_created",
+                        columnList = "receiver_id, created_at"),
+                @Index(name = "idx_notification_receiver_read",
+                        columnList = "receiver_id, is_read")
         }
-)@Getter
+)
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -33,18 +37,26 @@ public class Notification {
     @Column(nullable = false)
     private NotificationType notificationType;
 
-    @Column(name = "payload_json", columnDefinition = "TEXT", nullable = false)
-    private String payloadJson;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
     @Column(name = "is_read", nullable = false)
     @Builder.Default
     private boolean read = false;
 
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
+    @Column(name = "payload_json", columnDefinition = "TEXT", nullable = false)
+    private String payloadJson;
+
+    @CreationTimestamp
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+
     public void markRead() {
-        this.read = true;
+        if (!this.read) {
+            this.read = true;
+            this.readAt = LocalDateTime.now();
+        }
     }
 
 }

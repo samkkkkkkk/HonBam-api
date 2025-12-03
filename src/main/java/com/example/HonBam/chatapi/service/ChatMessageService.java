@@ -10,8 +10,10 @@ import com.example.HonBam.chatapi.repository.ChatMessageRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.exception.ChatRoomNotFoundException;
+import com.example.HonBam.notification.event.ChatMessageCreateEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,7 +39,9 @@ public class ChatMessageService {
     private final ChatRoomRepository chatRoomRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final ChatEventBroadcaster broadcaster;
+    private final ApplicationEventPublisher eventPublisher;
 
+    @Transactional
     public ChatMessageResponseDTO saveMessage(ChatMessageRequest request,
                                               String senderId,
                                               String senderName) {
@@ -93,6 +97,16 @@ public class ChatMessageService {
 
         broadcaster.broadcastRoomSummaryForParticipants(room, participants, unreadMap, senderId);
 
+        // 알림 이벤트
+        List<String> targetUserIds = participants.stream()
+                .map(cru -> cru.getUser().getId())
+                .filter(userId -> !userId.equals(senderId))
+                .collect(Collectors.toList());
+
+        if (!targetUserIds.isEmpty()) {
+            ChatMessageCreateEvent event = ChatMessageCreateEvent.of(saved, targetUserIds);
+            eventPublisher.publishEvent(event);
+        }
         return response;
 
     }

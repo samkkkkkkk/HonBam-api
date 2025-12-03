@@ -31,6 +31,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
@@ -344,8 +345,9 @@ public class UserController {
     }
 
     private String extractCookie(HttpServletRequest req, String name) {
-        var cs = req.getCookies(); if (cs == null) return null;
-        for (var c : cs) if (name.equals(c.getName())) return c.getValue();
+        Cookie[] cookies = req.getCookies();
+        if (cookies == null) return null;
+        for (Cookie c : cookies) if (name.equals(c.getName())) return c.getValue();
         return null;
     }
 }

@@ -20,6 +20,10 @@ public class NotificationPayload {
     private String receiverId;
     private String senderId;  
     private Long postId;    // 좋아요면 게시글 ID 없으면 null
+    private Long commentId;
+    private String chatRoomUuId;
+    private Long ChatMessageId;
+    private String message;
     private LocalDateTime timestamp;
     private Map<String, Objects> meta; // 확장 필드
 }

@@ -29,10 +29,6 @@ public class RedisConfig {
     @Value("${spring.data.redis.port}")
     private int port;
 
-    @Value("${spring.data.redis.timeout}")
-    private String timeout;
-
-
     // Redis 연결을 위한 LettuceConnectionFactory 빈 등록
     @Bean
     public LettuceConnectionFactory redisConnectionFactory() {
@@ -68,9 +64,18 @@ public class RedisConfig {
         return template;
     }
 
+    @Bean
+    public RedisTemplate<String, String> notificationRedisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
+        return template;
+    }
+
     // Redis Pub/Sub Listener 등록
     @Bean
-    public RedisMessageListenerContainer rediscontainer(
+    public RedisMessageListenerContainer redisMessageListenerContainer(
             RedisConnectionFactory connectionFactory,
             ChatEventSubscriber chatEventSubscriber,
             NotificationSubscriber notificationSubscriber) {

@@ -6,6 +6,7 @@ import com.example.HonBam.notification.entity.NotificationType;
 import com.example.HonBam.notification.event.FollowerCreatedEvent;
 import com.example.HonBam.notification.event.LikeCreateEvent;
 import com.example.HonBam.notification.repository.NotificationRepository;
+import com.example.HonBam.notification.service.NotificationPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,15 +20,9 @@ import java.time.LocalDateTime;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class NotificationEventListener {
+public class FeedNotificationEventListener {
 
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final ObjectMapper objectMapper;
-    private final NotificationRepository notificationRepository;
-
-    private String channel(String userId) {
-        return "notification:" + userId;
-    }
+    private final NotificationPublisher notificationPublisher;
 
     @Async
     @TransactionalEventListener
@@ -39,7 +34,7 @@ public class NotificationEventListener {
                 .timestamp(LocalDateTime.now())
                 .build();
 
-        publishAndPersist(payload);
+        notificationPublisher.publishAndPersist(payload);
 
     }
 
@@ -54,28 +49,6 @@ public class NotificationEventListener {
                 .timestamp(LocalDateTime.now())
                 .build();
 
-        publishAndPersist(payload);
-    }
-
-    private void publishAndPersist(NotificationPayload payload) {
-        try {
-            // Redis Pub/Sub
-            String json = objectMapper.writeValueAsString(payload);
-            redisTemplate.convertAndSend(channel(payload.getReceiverId()), json);
-
-            // DB에 저장
-            Notification entity = Notification.builder()
-                    .receiverId(payload.getReceiverId())
-                    .notificationType(payload.getType())
-                    .payloadJson(json)
-                    .build();
-
-
-            notificationRepository.save(entity);
-
-            log.info("notification published -> {}", channel(payload.getReceiverId()));
-        } catch (Exception e) {
-            log.error("알림 publish/persist 실패", e);
-        }
+        notificationPublisher.publishAndPersist(payload);
     }
 }
