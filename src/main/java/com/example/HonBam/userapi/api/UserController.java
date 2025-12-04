@@ -10,6 +10,7 @@ import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
 import com.example.HonBam.userapi.dto.response.LoginResponseDTO;
+import com.example.HonBam.userapi.dto.response.RefreshResponseDTO;
 import com.example.HonBam.userapi.dto.response.UserInfoResponseDTO;
 import com.example.HonBam.userapi.dto.response.UserSignUpResponseDTO;
 import com.example.HonBam.userapi.entity.User;
@@ -256,91 +257,92 @@ public class UserController {
             return ResponseEntity.status(401).body("NOT_REFRESH_TOKEN");
         }
 
-        String refreshHash = tokenProvider.hashRefreshToken(refresh);
-        String redisKey = "refresh:" + refreshHash;
-
-        // Redis 조회
-        boolean redisFail = false;
-        String userId = null;
-
-        try {
-            Object userIdObj = redisTemplate.opsForValue().get(redisKey);
-            if (userIdObj != null) {
-                userId = userIdObj.toString();
-            }
-        } catch (Exception e) {
-            redisFail = true;
-            log.warn("Redis 서버 연동 실패 {}", e.getMessage());
-        }
-
-        if (!redisFail && userId == null) {
-            return ResponseEntity.status(401).body("INVALID_REFRESH_TOKEN");
-        }
-        
-        // DB 검증
-        RefreshToken rt = refreshTokenRepository.findByTokenHash(refreshHash)
-                .orElse(null);
-        if (rt == null || rt.isRevoked()) {
-            return ResponseEntity.status(401).body("REFRESH_TOKEN_REVOKED");
-        }
-
-        if (rt.getExpiredAt().isBefore(LocalDateTime.now())) {
-            return ResponseEntity.status(401).body("REFRESH_TOKEN_EXPIRED");
-        }
-
-        if (userId == null) {
-            userId = rt.getUserId();
-        }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
-
-        // 기존 refreshToken 사용 완료 처리
-        rt.revoke();
-        
-        // 새로운 access token 발급
-        String newAccess = tokenProvider.createAccessToken(user);
-
-        if (redisFail) {
-            try {
-                redisTemplate.opsForValue()
-                        .set(redisKey, userId, authProperties.getToken().getRefreshExpireDuration());
-                log.info("Redis 복구 완료");
-            } catch (Exception e) {
-                log.warn("Redis 저장 실패 {}", e.getMessage());
-            }
-        }
-
-        String refreshToken = tokenProvider.createRefreshToken(user);
-        String newRefreshHash = tokenProvider.hashRefreshToken(refreshToken);
-        String newRedisKey = "refresh:" + newRefreshHash;
-
-        if (!redisFail) {
-            try {
-                redisTemplate.delete(redisKey);
-                redisTemplate.opsForValue()
-                        .set(newRedisKey, userId, authProperties.getToken().getRefreshExpireDuration());
-            } catch (Exception e) {
-                log.warn("Redis 저장 실패 {}", e.getMessage());
-
-            }
-        }
-
-        // DB에 새 refresh 저장
-        RefreshToken newRefresh = RefreshToken.builder()
-                .id(user.getId())
-                .tokenHash(newRefreshHash)
-                .revoked(false)
-                .expiredAt(LocalDateTime.now().plus(authProperties.getToken().getRefreshExpireDuration()))
-                .deviceInfo("local-login")
-                .build();
-        refreshTokenRepository.save(newRefresh);
+        RefreshResponseDTO dto = userService.refreshToken(refresh);
+//        String refreshHash = tokenProvider.hashRefreshToken(refresh);
+//        String redisKey = "refresh:" + refreshHash;
+//
+//        // Redis 조회
+//        boolean redisFail = false;
+//        String userId = null;
+//
+//        try {
+//            Object userIdObj = redisTemplate.opsForValue().get(redisKey);
+//            if (userIdObj != null) {
+//                userId = userIdObj.toString();
+//            }
+//        } catch (Exception e) {
+//            redisFail = true;
+//            log.warn("Redis 서버 연동 실패 {}", e.getMessage());
+//        }
+//
+//        if (!redisFail && userId == null) {
+//            return ResponseEntity.status(401).body("INVALID_REFRESH_TOKEN");
+//        }
+//
+//        // DB 검증
+//        RefreshToken rt = refreshTokenRepository.findByTokenHash(refreshHash)
+//                .orElse(null);
+//        if (rt == null || rt.isRevoked()) {
+//            return ResponseEntity.status(401).body("REFRESH_TOKEN_REVOKED");
+//        }
+//
+//        if (rt.getExpiredAt().isBefore(LocalDateTime.now())) {
+//            return ResponseEntity.status(401).body("REFRESH_TOKEN_EXPIRED");
+//        }
+//
+//        if (userId == null) {
+//            userId = rt.getUserId();
+//        }
+//
+//        User user = userRepository.findById(userId)
+//                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+//
+//        // 기존 refreshToken 사용 완료 처리
+//        rt.revoke();
+//
+//        // 새로운 access token 발급
+//        String newAccess = tokenProvider.createAccessToken(user);
+//
+//        if (redisFail) {
+//            try {
+//                redisTemplate.opsForValue()
+//                        .set(redisKey, userId, authProperties.getToken().getRefreshExpireDuration());
+//                log.info("Redis 복구 완료");
+//            } catch (Exception e) {
+//                log.warn("Redis 저장 실패 {}", e.getMessage());
+//            }
+//        }
+//
+//        String refreshToken = tokenProvider.createRefreshToken(user);
+//        String newRefreshHash = tokenProvider.hashRefreshToken(refreshToken);
+//        String newRedisKey = "refresh:" + newRefreshHash;
+//
+//        if (!redisFail) {
+//            try {
+//                redisTemplate.delete(redisKey);
+//                redisTemplate.opsForValue()
+//                        .set(newRedisKey, userId, authProperties.getToken().getRefreshExpireDuration());
+//            } catch (Exception e) {
+//                log.warn("Redis 저장 실패 {}", e.getMessage());
+//
+//            }
+//        }
+//
+//        // DB에 새 refresh 저장
+//        RefreshToken newRefresh = RefreshToken.builder()
+//                .userId(user.getId())
+//                .tokenHash(newRefreshHash)
+//                .revoked(false)
+//                .expiredAt(LocalDateTime.now().plus(authProperties.getToken().getRefreshExpireDuration()))
+//                .deviceInfo("local-login")
+//                .build();
+//        refreshTokenRepository.save(newRefresh);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE,
-                        cookieUtil.createAccessCookie(newAccess).toString())
+                        cookieUtil.createAccessCookie(dto.getAccessToken()).toString())
                 .header(HttpHeaders.SET_COOKIE,
-                        cookieUtil.createRefreshCookie(refreshToken).toString())
+                        cookieUtil.createRefreshCookie(dto.getRefreshToken()).toString())
                 .build();
     }
 
