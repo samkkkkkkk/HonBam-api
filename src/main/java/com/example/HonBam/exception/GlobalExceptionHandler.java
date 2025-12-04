@@ -59,6 +59,13 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("COMMENT_NOT_FOUND", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidateRefreshTokenException(InvalidRefreshTokenException e) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse("INVALID_REFRESH_TOKEN", e.getMessage()));
+    }
+
     // 기타 RuntimeException 처리 (fallback)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
