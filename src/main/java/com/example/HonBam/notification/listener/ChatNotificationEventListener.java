@@ -39,7 +39,7 @@ public class ChatNotificationEventListener {
                     .receiverId(receiverId)
                     .senderId(e.getSenderId())
                     .chatRoomUuId(e.getRoomUuid())
-                    .ChatMessageId(e.getMessageId())
+                    .chatMessageId(e.getMessageId())
                     .message(trimPreview(e.getContent()))
                     .timestamp(LocalDateTime.now())
                     .build();

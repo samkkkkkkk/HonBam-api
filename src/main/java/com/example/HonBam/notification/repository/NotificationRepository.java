@@ -15,9 +15,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Page<Notification> findByReceiverIdOrderByCreatedAtDesc(String receiverId, Pageable pageable);
 
-    Page<Notification> findByReceiverIdAndIsReadFalseOrderByCreatedAtDesc(String receiverId, Pageable pageable);
+    Page<Notification> findByReceiverIdAndReadFalseOrderByCreatedAtDesc(String receiverId, Pageable pageable);
 
-    long countByReceiverIdAndIsReadFalse(String receiverId);
+    long countByReceiverIdAndReadFalse(String receiverId);
 
     Page<Notification> findByReceiverIdAndNotificationType(
             String receiverId,

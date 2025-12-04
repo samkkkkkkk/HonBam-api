@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Objects;
 
 @Getter
 @Builder
@@ -22,8 +21,8 @@ public class NotificationPayload {
     private Long postId;    // 좋아요면 게시글 ID 없으면 null
     private Long commentId;
     private String chatRoomUuId;
-    private Long ChatMessageId;
+    private Long chatMessageId;
     private String message;
     private LocalDateTime timestamp;
-    private Map<String, Objects> meta; // 확장 필드
+    private Map<String, Object> meta; // 확장 필드
 }
