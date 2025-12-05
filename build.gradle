@@ -73,6 +73,9 @@ dependencies {
     // RebbitMQ
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
+    //Minio
+    implementation 'io.minio:minio:8.5.1'
+
     implementation 'commons-codec:commons-codec:1.15'
 
     implementation 'commons-io:commons-io:2.8.0'
