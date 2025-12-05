@@ -1,6 +1,7 @@
 package com.example.HonBam.upload;
 
 import com.example.HonBam.upload.dto.UploadResponseDTO;
+import com.example.HonBam.upload.service.UploadService;
 import io.netty.util.internal.StringUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,61 +26,21 @@ import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 
+
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api")
-@Slf4j
 public class UploadController {
 
-    @Value("${upload.path}")
-    private String uploadRootPath;
+    private final UploadService uploadService;
 
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadFile(
-            @RequestParam("file") MultipartFile file
-    ) {
+    public ResponseEntity<?> upload(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "빈 배열입니다."));
+            return ResponseEntity.badRequest().body(Map.of("error", "파일이 비어 있습니다."));
         }
 
-        try {
-            String today = LocalDate.now().toString();
-            Path uploadPath = Paths.get(uploadRootPath, today);
-
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
-
-            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
-            String extension = "";
-
-            int dotIndex = originalFilename.lastIndexOf('.');
-            if (dotIndex > 0) {
-                extension = originalFilename.substring(dotIndex);
-            }
-
-            String newFilename = UUID.randomUUID() + extension;
-            File savedPath = uploadPath.resolve(newFilename).toFile();
-
-            file.transferTo(savedPath);
-
-            String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .build()
-                    .toUriString();
-
-            // 접근 가능한 URL 생성
-            String fileUrl = String.format("%s/uploads/%s/%s", baseUrl, today, newFilename);
-
-            log.info("파일 업로드 성공: {}", fileUrl);
-            UploadResponseDTO response = UploadResponseDTO.builder()
-                    .url(fileUrl)
-                    .fileName(newFilename)
-                    .build();
-
-
-            return ResponseEntity.ok(response);
-        } catch (IOException e) {
-            return ResponseEntity.internalServerError().body(null);
-        }
-
+        UploadResponseDTO response = uploadService.uploadFile(file);
+        return ResponseEntity.ok(response);
     }
 }
