@@ -6,6 +6,7 @@ import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
 import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.ChatRoom;
 import com.example.HonBam.chatapi.entity.ChatRoomUser;
+import com.example.HonBam.chatapi.entity.MessageType;
 import com.example.HonBam.chatapi.repository.ChatMessageRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
@@ -52,13 +53,27 @@ public class ChatMessageService {
                 .room(room)
                 .senderId(senderId)
                 .senderName(senderName)
+                .messageType(request.getMessageType())
                 .content(request.getContent())
+                .fileUrl(request.getFileUrl())
+                .fileName(request.getFileName())
+                .fileSize(request.getFileSize())
                 .build();
 
         ChatMessage saved = chatMessageRepository.save(message);
         log.info("메시지 저장: {}", message);
 
-        room.updateLastMessage(request.getContent(), message.getTimestamp(), message.getId());
+        // lastMessage 업데이트 MessageType 구분해서 처리
+        String preview =
+                switch (saved.getMessageType()) {
+                    case TEXT -> request.getContent();
+                    case FILE -> "[파일]";
+                    case IMAGE -> "[사진]";
+                    case VIDEO -> "[영상]";
+                    case SYSTEM -> request.getContent();
+                };
+
+        room.updateLastMessage(preview, saved.getTimestamp(), saved.getId());
 
         try {
             chatRoomRepository.save(room);
@@ -79,7 +94,11 @@ public class ChatMessageService {
                 .roomUuid(room.getRoomUuid())  // UUID 반환
                 .senderId(saved.getSenderId())
                 .senderName(saved.getSenderName())
+                .messageType(saved.getMessageType())
                 .content(saved.getContent())
+                .fileUrl(saved.getFileUrl())
+                .fileName(saved.getFileName())
+                .fileSize(saved.getFileSize())
                 .timestamp(saved.getTimestamp())
                 .unReadUserCount(unreadCount)
                 .build();

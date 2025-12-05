@@ -27,8 +27,21 @@ public class ChatMessage {
     @Column(name = "sender_name", nullable = false)
     private String senderName;
 
+    @Column(name = "message_type", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private MessageType messageType;
+
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
+
+    @Column(name = "file_url")
+    private String fileUrl;
+
+    @Column(name = "file_name")
+    private String fileName;
+
+    @Column(name = "file_size")
+    private Long fileSize;
 
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
