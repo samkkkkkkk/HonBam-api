@@ -64,14 +64,25 @@ public class ChatMessageService {
         log.info("메시지 저장: {}", message);
 
         // lastMessage 업데이트 MessageType 구분해서 처리
-        String preview =
-                switch (saved.getMessageType()) {
-                    case TEXT -> request.getContent();
-                    case FILE -> "[파일]";
-                    case IMAGE -> "[사진]";
-                    case VIDEO -> "[영상]";
-                    case SYSTEM -> request.getContent();
-                };
+        String preview;
+
+        switch (saved.getMessageType()) {
+            case TEXT:
+            case SYSTEM:
+                preview = request.getContent();
+                break;
+            case FILE:
+                preview = "[파일]";
+                break;
+            case IMAGE:
+                preview = "[사진]";
+                break;
+            case VIDEO:
+                preview = "[영상]";
+                break;
+            default:
+                preview = "";
+        }
 
         room.updateLastMessage(preview, saved.getTimestamp(), saved.getId());
 
