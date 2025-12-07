@@ -12,37 +12,32 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import java.net.URI;
 
 @Configuration
-public class MinioS3Config {
-    @Value("${minio.endpoint}")
-    private String endpoint;
+public class S3Config {
 
-    @Value("${minio.access-key}")
+    @Value("${aws.s3.access-key}")
     private String accessKey;
 
-    @Value("${minio.secret-key}")
+    @Value("${aws.s3.secret-key}")
     private String secretKey;
 
-    @Value("${minio.region}")
+    @Value("${aws.s3.region}")
     private String region;
 
     @Bean
     public S3Client s3Client() {
         return S3Client.builder()
-//                .endpointOverride(URI.create(endpoint)) // MinIO는 필수
                 .credentialsProvider(
                         StaticCredentialsProvider.create(
                                 AwsBasicCredentials.create(accessKey, secretKey)
                         )
                 )
                 .region(Region.of(region))
-//                .forcePathStyle(true) // MinIO는 virtual-host style을 미지원
                 .build();
     }
 
     @Bean
     public S3Presigner s3Presigner() {
         return S3Presigner.builder()
-                .endpointOverride(URI.create(endpoint))
                 .credentialsProvider(
                         StaticCredentialsProvider.create(
                                 AwsBasicCredentials.create(accessKey, secretKey)
