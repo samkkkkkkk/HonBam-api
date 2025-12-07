@@ -5,7 +5,6 @@ package com.example.HonBam.chatapi.api;
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.chatapi.dto.request.ChatMessageRequest;
 import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
-import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.chatapi.service.ChatMessageService;
 import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.userapi.entity.User;
@@ -18,12 +17,13 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @RestController
