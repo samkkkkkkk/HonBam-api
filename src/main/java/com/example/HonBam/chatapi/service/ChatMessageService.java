@@ -6,12 +6,12 @@ import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
 import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.ChatRoom;
 import com.example.HonBam.chatapi.entity.ChatRoomUser;
-import com.example.HonBam.chatapi.entity.MessageType;
 import com.example.HonBam.chatapi.repository.ChatMessageRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.exception.ChatRoomNotFoundException;
 import com.example.HonBam.notification.event.ChatMessageCreateEvent;
+import com.example.HonBam.upload.service.PresignedUrlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -24,7 +24,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StopWatch;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,9 +37,9 @@ public class ChatMessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatRoomUserRepository chatRoomUserRepository;
     private final ChatRoomRepository chatRoomRepository;
-    private final SimpMessagingTemplate messagingTemplate;
     private final ChatEventBroadcaster broadcaster;
     private final ApplicationEventPublisher eventPublisher;
+    private final PresignedUrlService presignedUrlService;
 
     @Transactional
     public ChatMessageResponseDTO saveMessage(ChatMessageRequest request,
@@ -49,13 +48,15 @@ public class ChatMessageService {
         // UUID 기반으로 ChatRoom 조회
         ChatRoom room = chatRoomService.findByRoomUuid(request.getRoomUuid());
 
+        log.info("메시지 request 요청: {} {}", request.getFileSize(), request.getFileKey());
+
         ChatMessage message = ChatMessage.builder()
                 .room(room)
                 .senderId(senderId)
                 .senderName(senderName)
                 .messageType(request.getMessageType())
                 .content(request.getContent())
-                .fileUrl(request.getFileUrl())
+                .fileKey(request.getFileKey())
                 .fileName(request.getFileName())
                 .fileSize(request.getFileSize())
                 .build();
@@ -100,6 +101,13 @@ public class ChatMessageService {
                 senderId
         );
 
+        // presigned GET URL 생성
+        String fileUrl = saved.getFileKey() != null
+                ? presignedUrlService.generatePresignedGetUrl(saved.getFileKey())
+                : null;
+
+        log.info("filUrl: {} ", fileUrl);
+
         ChatMessageResponseDTO response = ChatMessageResponseDTO.builder()
                 .id(saved.getId())
                 .roomUuid(room.getRoomUuid())  // UUID 반환
@@ -107,7 +115,7 @@ public class ChatMessageService {
                 .senderName(saved.getSenderName())
                 .messageType(saved.getMessageType())
                 .content(saved.getContent())
-                .fileUrl(saved.getFileUrl())
+                .fileUrl(fileUrl)
                 .fileName(saved.getFileName())
                 .fileSize(saved.getFileSize())
                 .timestamp(saved.getTimestamp())
@@ -178,17 +186,30 @@ public class ChatMessageService {
         return convertMessagesWithUnreadMap(messages, unreadMap);
     }
 
-    private List<ChatMessageResponseDTO> convertMessagesWithUnreadMap(List<ChatMessage> messages, Map<Long, Long> unreadMap) {
+    private List<ChatMessageResponseDTO> convertMessagesWithUnreadMap(
+            List<ChatMessage> messages, Map<Long, Long> unreadMap) {
+
         return messages.stream()
-                .map(m -> ChatMessageResponseDTO.builder()
-                        .id(m.getId())
-                        .roomUuid(m.getRoom().getRoomUuid())
-                        .senderName(m.getSenderName())
-                        .senderId(m.getSenderId())
-                        .content(m.getContent())
-                        .timestamp(m.getTimestamp())
-                        .unReadUserCount(unreadMap.getOrDefault(m.getId(), 0L))
-                        .build())
+                .map(m -> {
+                    String url = null;
+                    if (m.getFileKey() != null) {
+                        url = presignedUrlService.generatePresignedGetUrl(m.getFileKey());
+                    }
+
+                    return ChatMessageResponseDTO.builder()
+                            .id(m.getId())
+                            .roomUuid(m.getRoom().getRoomUuid())
+                            .senderId(m.getSenderId())
+                            .senderName(m.getSenderName())
+                            .messageType(m.getMessageType())
+                            .content(m.getContent())
+                            .fileUrl(url)
+                            .fileName(m.getFileName())
+                            .fileSize(m.getFileSize())
+                            .timestamp(m.getTimestamp())
+                            .unReadUserCount(unreadMap.getOrDefault(m.getId(), 0L))
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 
@@ -219,7 +240,7 @@ public class ChatMessageService {
 
         Long roomId = room.getId();
 
-        // 최근 메시지 50개만 (성능 고려)
+        // 최근 메시지 50개만
         List<ChatMessage> messages = chatMessageRepository.findMessageWithPaging(roomId, 50, 0);
 
         // 미읽음 카운트 매핑
@@ -231,15 +252,26 @@ public class ChatMessageService {
                 ));
 
         return messages.stream()
-                .map(m -> ChatMessageResponseDTO.builder()
-                        .id(m.getId())
-                        .roomUuid(roomUuid)
-                        .senderId(m.getSenderId())
-                        .senderName(m.getSenderName())
-                        .content(m.getContent())
-                        .timestamp(m.getTimestamp())
-                        .unReadUserCount(unreadMap.getOrDefault(m.getId(), 0L))
-                        .build())
+                .map(m -> {
+                    String url = null;
+                    if (m.getFileKey() != null) {
+                        url = presignedUrlService.generatePresignedGetUrl(m.getFileKey());
+                    }
+
+                    return ChatMessageResponseDTO.builder()
+                            .id(m.getId())
+                            .roomUuid(roomUuid)
+                            .senderId(m.getSenderId())
+                            .senderName(m.getSenderName())
+                            .messageType(m.getMessageType())
+                            .content(m.getContent())
+                            .fileUrl(url)
+                            .fileName(m.getFileName())
+                            .fileSize(m.getFileSize())
+                            .timestamp(m.getTimestamp())
+                            .unReadUserCount(unreadMap.getOrDefault(m.getId(), 0L))
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 }

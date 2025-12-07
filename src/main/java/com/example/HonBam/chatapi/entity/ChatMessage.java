@@ -34,8 +34,8 @@ public class ChatMessage {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "file_url")
-    private String fileUrl;
+    @Column(name = "file_key", length = 500)
+    private String fileKey;
 
     @Column(name = "file_name")
     private String fileName;

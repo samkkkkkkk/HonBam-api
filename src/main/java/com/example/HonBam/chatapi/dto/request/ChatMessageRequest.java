@@ -15,7 +15,7 @@ public class ChatMessageRequest {
 
     private String content;   // 메시지 내용
 
-    private String fileUrl;
+    private String fileKey;
     private String fileName;
     private Long fileSize;
 }
