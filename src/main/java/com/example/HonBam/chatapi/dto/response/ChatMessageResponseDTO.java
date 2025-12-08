@@ -1,5 +1,6 @@
 package com.example.HonBam.chatapi.dto.response;
 
+import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.MessageType;
 import lombok.*;
 
@@ -24,4 +25,20 @@ public class ChatMessageResponseDTO {
 
     private LocalDateTime timestamp;
     private Long unReadUserCount;
+
+    public static ChatMessageResponseDTO from(ChatMessage message, Long unReadUserCount, String fileUrl) {
+        return ChatMessageResponseDTO.builder()
+                .id(message.getId())
+                .roomUuid(message.getRoom().getRoomUuid())
+                .senderId(message.getSenderId())
+                .senderName(message.getSenderName())
+                .messageType(message.getMessageType())
+                .content(message.getContent())
+                .fileUrl(fileUrl)
+                .fileName(message.getFileName())
+                .fileSize(message.getFileSize())
+                .timestamp(message.getTimestamp())
+                .unReadUserCount(unReadUserCount)
+                .build();
+    }
 }

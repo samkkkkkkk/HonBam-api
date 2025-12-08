@@ -6,6 +6,7 @@ import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
 import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.ChatRoom;
 import com.example.HonBam.chatapi.entity.ChatRoomUser;
+import com.example.HonBam.chatapi.event.ChatMessageSavedEvent;
 import com.example.HonBam.chatapi.repository.ChatMessageRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
@@ -45,12 +46,12 @@ public class ChatMessageService {
                                               String senderId,
                                               String senderName) {
 
+        // 메시지 저장
         ChatMessage saved = messageSaveCoreService.saveCore(request, senderId, senderName);
-
         ChatRoom room = saved.getRoom();
 
+        // ChatRoom lastMessage 업데이트
         String preview = makePreview(request, saved);
-
         chatRoomUpdateService.updateLastMessage(
                 room.getId(),
                 preview,
@@ -58,21 +59,15 @@ public class ChatMessageService {
                 saved.getId()
         );
 
-        // 안 읽은 메시지 수 계산
-        long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(
-                room.getId(),
-                saved.getId(),
-                senderId
-        );
-
         // presigned GET URL 생성
         String fileUrl = saved.getFileKey() != null
                 ? presignedUrlService.generatePresignedGetUrl(saved.getFileKey())
                 : null;
 
-        log.info("filUrl: {} ", fileUrl);
+        // 비동기 처리 이벤트 발생
+        eventPublisher.publishEvent(ChatMessageSavedEvent.of(saved));
 
-        ChatMessageResponseDTO response = ChatMessageResponseDTO.builder()
+        return ChatMessageResponseDTO.builder()
                 .id(saved.getId())
                 .roomUuid(room.getRoomUuid())  // UUID 반환
                 .senderId(saved.getSenderId())
@@ -83,33 +78,7 @@ public class ChatMessageService {
                 .fileName(saved.getFileName())
                 .fileSize(saved.getFileSize())
                 .timestamp(saved.getTimestamp())
-                .unReadUserCount(unreadCount)
                 .build();
-
-        // 채팅방 내부 메시지 브로드캐스트
-        broadcaster.sendChatMessage(room.getRoomUuid(), response);
-
-        // 각 참여자의 unreadCount를 다시 계산해서 summary 브로드캐스트
-        List<ChatRoomUser> participants = chatRoomUserRepository.findByRoom(room);
-        Map<String, Long> unreadMap = participants.stream().collect(
-                Collectors.toMap(
-                        cru -> cru.getUser().getId(),
-                        cru -> chatMessageRepository.countUnreadMessagesForRoomAndUser(room.getId(), cru.getUser().getId()))
-        );
-
-        broadcaster.broadcastRoomSummaryForParticipants(room, participants, unreadMap, senderId);
-
-        // 알림 이벤트
-        List<String> targetUserIds = participants.stream()
-                .map(cru -> cru.getUser().getId())
-                .filter(userId -> !userId.equals(senderId))
-                .collect(Collectors.toList());
-
-        if (!targetUserIds.isEmpty()) {
-            ChatMessageCreateEvent event = ChatMessageCreateEvent.of(saved, targetUserIds);
-            eventPublisher.publishEvent(event);
-        }
-        return response;
 
     }
 
