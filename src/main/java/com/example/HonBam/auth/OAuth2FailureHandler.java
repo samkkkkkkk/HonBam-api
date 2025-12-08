@@ -1,6 +1,7 @@
 package com.example.HonBam.auth;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 @Component
+@Profile("!test")
 public class OAuth2FailureHandler implements AuthenticationFailureHandler {
 
     @Value("${app.oauth2.redirect.failure}")
