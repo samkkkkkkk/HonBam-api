@@ -135,4 +135,53 @@ public class ChatRoomConcurrencyTest {
         assertThat(count).isEqualTo(threadCount);
     }
 
+    @Test
+    void last_message_should_point_to_latest_message() throws Exception {
+
+        int threadCount = 100;
+        ExecutorService executor = Executors.newFixedThreadPool(20);
+        CountDownLatch latch = new CountDownLatch(threadCount);
+
+        for (int i = 0; i < threadCount; i++) {
+            int index = i;
+
+            executor.submit(() -> {
+                try {
+                    ChatMessageRequest req = ChatMessageRequest.builder()
+                            .roomUuid(room.getRoomUuid())
+                            .messageType(MessageType.TEXT)
+                            .content("msg-" + index)
+                            .build();
+
+                    chatMessageService.saveMessage(req, "userA", "홍길동");
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+
+        // 1) 메시지 100개 저장 검증
+        long count = chatMessageRepository.countByRoomId(room.getId());
+        assertThat(count).isEqualTo(threadCount);
+
+        // 2) DB에서 가장 마지막 message id 조회
+        Long maxMessageId =
+                chatMessageRepository.findTopByRoomIdOrderByIdDesc(room.getId())
+                        .map(ChatMessage::getId)
+                        .orElseThrow();
+
+        // 3) ChatRoom.lastMessageId와 비교
+        ChatRoom updatedRoom =
+                chatRoomRepository.findById(room.getId()).orElseThrow();
+
+        assertThat(updatedRoom.getLastMessageId())
+                .isEqualTo(maxMessageId);
+
+        System.out.println("lastMessageId = " + updatedRoom.getLastMessageId());
+        System.out.println("expected maxMessageId = " + maxMessageId);
+    }
+
+
 }

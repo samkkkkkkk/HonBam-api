@@ -2,10 +2,12 @@ package com.example.HonBam.chatapi.repository;
 
 import com.example.HonBam.chatapi.entity.ChatRoom;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,4 +21,16 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     // 공개 채팅방 + 키워드 검색
     @Query("SELECT r FROM ChatRoom r WHERE r.open = true AND r.customName LIKE CONCAT('%', :keyword, '%')")
     List<ChatRoom> searchOpenRooms(@Param("keyword") String keyword);
+
+    @Modifying
+    @Query("UPDATE ChatRoom c " +
+            "SET c.lastMessage = :msg, " +
+            "c.lastMessageId = :messageId," +
+            "c.lastMessageTime = :time " +
+            "WHERE c.id = :roomId")
+    int updateLastMessage(@Param("roomId") Long roomId,
+                          @Param("msg") String msg,
+                          @Param("time") LocalDateTime time,
+                          @Param("messageId") Long messageId);
+
 }

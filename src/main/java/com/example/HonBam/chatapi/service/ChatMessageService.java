@@ -15,11 +15,9 @@ import com.example.HonBam.upload.service.PresignedUrlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StopWatch;
@@ -40,59 +38,25 @@ public class ChatMessageService {
     private final ChatEventBroadcaster broadcaster;
     private final ApplicationEventPublisher eventPublisher;
     private final PresignedUrlService presignedUrlService;
+    private final ChatRoomUpdateService chatRoomUpdateService;
+    private final MessageSaveCoreService messageSaveCoreService;
 
-    @Transactional
     public ChatMessageResponseDTO saveMessage(ChatMessageRequest request,
                                               String senderId,
                                               String senderName) {
-        // UUID 기반으로 ChatRoom 조회
-        ChatRoom room = chatRoomService.findByRoomUuid(request.getRoomUuid());
 
-        log.info("메시지 request 요청: {} {}", request.getFileSize(), request.getFileKey());
+        ChatMessage saved = messageSaveCoreService.saveCore(request, senderId, senderName);
 
-        ChatMessage message = ChatMessage.builder()
-                .room(room)
-                .senderId(senderId)
-                .senderName(senderName)
-                .messageType(request.getMessageType())
-                .content(request.getContent())
-                .fileKey(request.getFileKey())
-                .fileName(request.getFileName())
-                .fileSize(request.getFileSize())
-                .build();
+        ChatRoom room = saved.getRoom();
 
-        ChatMessage saved = chatMessageRepository.save(message);
-        log.info("메시지 저장: {}", message);
+        String preview = makePreview(request, saved);
 
-        // lastMessage 업데이트 MessageType 구분해서 처리
-        String preview;
-
-        switch (saved.getMessageType()) {
-            case TEXT:
-            case SYSTEM:
-                preview = request.getContent();
-                break;
-            case FILE:
-                preview = "[파일]";
-                break;
-            case IMAGE:
-                preview = "[사진]";
-                break;
-            case VIDEO:
-                preview = "[영상]";
-                break;
-            default:
-                preview = "";
-        }
-
-        room.updateLastMessage(preview, saved.getTimestamp(), saved.getId());
-
-        try {
-            chatRoomRepository.save(room);
-        } catch (DataAccessException e) {
-            log.error("[MESSAGE SAVE] DB error: {} ", e.getMessage());
-            throw new RuntimeException("메시지 저장 중 오류 발생", e);
-        }
+        chatRoomUpdateService.updateLastMessage(
+                room.getId(),
+                preview,
+                saved.getTimestamp(),
+                saved.getId()
+        );
 
         // 안 읽은 메시지 수 계산
         long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(
@@ -147,6 +111,22 @@ public class ChatMessageService {
         }
         return response;
 
+    }
+
+    private String makePreview(ChatMessageRequest request, ChatMessage saved) {
+        switch (saved.getMessageType()) {
+            case TEXT:
+            case SYSTEM:
+                return request.getContent();
+            case FILE:
+                return "[파일]";
+            case IMAGE:
+                return "[사진]";
+            case VIDEO:
+                return "[영상]";
+            default:
+                return "";
+        }
     }
 
     // JPA Pageable 방식

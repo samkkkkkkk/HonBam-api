@@ -68,4 +68,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
             "WHERE cru.room.id = :roomId " +
             "AND cru.user.id = :userId), 0)")
     long countUnreadMessagesForRoomAndUser(@Param("roomId") Long roomId, @Param("userId") String userId);
+
+    Optional<ChatMessage> findTopByRoomIdOrderByIdDesc(Long id);
+
 }

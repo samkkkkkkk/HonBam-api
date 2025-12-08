@@ -11,7 +11,7 @@ import java.util.UUID;
 @Entity
 @ToString
 @Table(name = "chat_room")
-@Getter @Setter
+@Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -69,20 +69,15 @@ public class ChatRoom {
         }
     }
 
-    // 메시지 저장 시 캐싱 필드 업데이트
-    public void updateLastMessage(String message, LocalDateTime time, Long messageId) {
-        if (this.lastMessageId == null || messageId > this.lastMessageId) {
-            this.lastMessage = message;
-            this.lastMessageTime = time;
-            this.lastMessageId = messageId;
-        }
-    }
 
     // group 메시지 전환 메서드
-    public void convertToGroup(String newName) {
-        this.direct = false;
-        if (newName != null && !newName.isBlank()) {
-            this.customName = newName;
+    public void convertToGroup(long userCount, String newName) {
+        if (userCount >= 3 && this.isDirect()) {
+            this.direct = false;
+
+            if (newName != null && !newName.isBlank()) {
+                this.customName = newName;
+            }
         }
     }
 }

@@ -102,14 +102,8 @@ public class ChatRoomService {
 
             // direct -> group 자동 변환
             long count = chatRoomUserRepository.countByRoom(room);
-            if (count >= 3 && room.isDirect()) {
-                room.setDirect(false);
-                if (dto.getName() != null && !dto.getName().isBlank()) {
-                    room.setCustomName(dto.getName());
-                }
-                chatRoomRepository.save(room);
-            }
-            
+            room.convertToGroup(count, dto.getName());
+
         }
 
         return ChatRoomResponse.builder()
@@ -153,39 +147,10 @@ public class ChatRoomService {
 
         // 3명 이상이면 direct -> group
         long count = chatRoomUserRepository.countByRoom(room);
-        if (count >= 3 && room.isDirect()) {
-            room.setDirect(false);
-            chatRoomRepository.save(room);
-        }
+        room.convertToGroup(count, room.getCustomName());
 
 
     }
-    
-//    // 내가 참여중인 방 리스트
-//    public List<ChatRoomListResponseDTO> roomList(TokenUserInfo userInfo) {
-//        List<ChatRoomUser> cruList = chatRoomUserRepository.findUserByUserWithParticipants(userInfo.getUserId());
-//
-//        if (cruList.isEmpty()) {
-//            return Collections.emptyList();
-//        }
-//
-//        return cruList.stream()
-//                .map(cru -> {
-//                    ChatRoom r = cru.getRoom();
-//                    long unread = chatMessageRepository.countUnreadMessages(r.getId(), cru.getLastReadTime());
-//
-//                    return ChatRoomListResponseDTO.builder()
-//                            .roomUuid(r.getRoomUuid())
-//                            .customName(resolveDisplayName(r, userInfo.getUserId()))
-//                            .lastMessage(r.getLastMessage())
-//                            .lastMessageTime(r.getLastMessageTime())
-//                            .unReadCount(unread)
-//                            .open(r.isOpen())
-//                            .direct(r.isDirect())
-//                            .allowJoinAll(r.isAllowJoinAll())
-//                            .build();
-//                }).collect(Collectors.toList());
-//    }
 
     // 내가 참여중인 방 리스트
     public List<ChatRoomListResponseDTO> roomList(String userId) {
@@ -311,10 +276,7 @@ public class ChatRoomService {
 
         // direct + group 자동 전환
         long count = chatRoomUserRepository.countByRoom(room);
-        if (count >= 3 && room.isDirect()) {
-            room.setDirect(false);
-            chatRoomRepository.save(room);
-        }
+        room.convertToGroup(count, room.getCustomName());
 
     }
 
