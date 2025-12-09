@@ -47,31 +47,29 @@ public class ChatMessageAsyncHandler {
                     .orElse(null);
             if (message == null) return;
 
-            ChatRoom room = message.getRoom();
-
             String fileUrl = message.getFileKey() != null
                     ? presignedUrlService.generatePresignedGetUrl(message.getFileKey())
                     : null;
 
             // unreadCount 계산
-            long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(room.getId(), messageId, senderId);
+            long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(roomId, messageId, senderId);
 
             // 참여자 조회
-            List<ChatRoomUser> participants = chatRoomUserRepository.findByRoom(room);
+            List<ChatRoomUser> participants = chatRoomUserRepository.findWithUserByRoomId(roomId);
 
             // summary 정보 계산
-            Map<String, Long> unreadMap = participants.stream()
-                    .collect(Collectors.toMap(
-                            cru -> cru.getUser().getId(),
-                            cru -> chatMessageRepository.countUnreadMessagesForRoomAndUser(
-                                    roomId, cru.getUser().getId())
-                    ));
+            Map<String, Long> unreadMap =
+                    chatRoomUserRepository.countUnreadMessagesForEachUser(roomId).stream()
+                            .collect(Collectors.toMap(
+                                    p -> p.getUserId(),
+                                    p -> p.getUnreadCount()
+                            ));
 
             // 메시지 브로드캐스트
-            chatEventBroadcaster.sendChatMessage(roomUuid, ChatMessageResponseDTO.from(message, unreadCount, fileUrl));
+            chatEventBroadcaster.sendChatMessage(roomUuid, ChatMessageResponseDTO.from(message,roomUuid, unreadCount, fileUrl));
 
             // summary 브로드캐스트
-            chatEventBroadcaster.broadcastRoomSummaryForParticipants(room, participants, unreadMap, senderId);
+            chatEventBroadcaster.broadcastRoomSummaryForParticipants(roomUuid, participants, unreadMap, senderId);
 
             // 알림 이벤트 발행
             List<String> targetUserIds = participants.stream()
@@ -81,7 +79,7 @@ public class ChatMessageAsyncHandler {
 
             if (!targetUserIds.isEmpty()) {
                 eventPublisher.publishEvent(
-                        ChatMessageCreateEvent.of(message, targetUserIds)
+                        ChatMessageCreateEvent.of(message, roomUuid, targetUserIds)
                 );
             }
         } catch (Exception e) {

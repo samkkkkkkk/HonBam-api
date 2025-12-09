@@ -47,17 +47,17 @@ public class ChatMessageController {
 
     }
 
-    // 메시지 목록 페이징 처리
-    @GetMapping("/page")
-    public ResponseEntity<List<ChatMessageResponseDTO>> getMessagesPage(
-            @RequestParam Long roomId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size
-    ) {
-        List<ChatMessageResponseDTO> messages = chatMessageService.getMessageNative(roomId, page, size);
-        return ResponseEntity.ok(messages);
-
-    }
+//    // 메시지 목록 페이징 처리
+//    @GetMapping("/page")
+//    public ResponseEntity<List<ChatMessageResponseDTO>> getMessagesPage(
+//            @RequestParam Long roomId,
+//            @RequestParam(defaultValue = "1") int page,
+//            @RequestParam(defaultValue = "50") int size
+//    ) {
+//        List<ChatMessageResponseDTO> messages = chatMessageService.getMessageNative(roomId, page, size);
+//        return ResponseEntity.ok(messages);
+//
+//    }
 
 
     @GetMapping("/cursor")

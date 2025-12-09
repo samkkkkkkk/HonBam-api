@@ -1,20 +1,21 @@
 package com.example.HonBam.chatapi.service;
 
 import com.example.HonBam.chatapi.component.ChatEventBroadcaster;
+import com.example.HonBam.chatapi.dto.UnreadCountProjection;
+import com.example.HonBam.chatapi.dto.UnreadSummaryProjection;
 import com.example.HonBam.chatapi.dto.request.ChatMessageRequest;
 import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
 import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.ChatRoom;
-import com.example.HonBam.chatapi.entity.ChatRoomUser;
 import com.example.HonBam.chatapi.event.ChatMessageSavedEvent;
 import com.example.HonBam.chatapi.repository.ChatMessageRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.exception.ChatRoomNotFoundException;
-import com.example.HonBam.notification.event.ChatMessageCreateEvent;
 import com.example.HonBam.upload.service.PresignedUrlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.units.qual.C;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -32,17 +33,15 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ChatMessageService {
 
-    private final ChatRoomService chatRoomService;
     private final ChatMessageRepository chatMessageRepository;
     private final ChatRoomUserRepository chatRoomUserRepository;
     private final ChatRoomRepository chatRoomRepository;
-    private final ChatEventBroadcaster broadcaster;
     private final ApplicationEventPublisher eventPublisher;
     private final PresignedUrlService presignedUrlService;
     private final ChatRoomUpdateService chatRoomUpdateService;
     private final MessageSaveCoreService messageSaveCoreService;
 
-    public ChatMessageResponseDTO saveMessage(ChatMessageRequest request,
+    public void saveMessage(ChatMessageRequest request,
                                               String senderId,
                                               String senderName) {
 
@@ -66,20 +65,6 @@ public class ChatMessageService {
 
         // 비동기 처리 이벤트 발생
         eventPublisher.publishEvent(ChatMessageSavedEvent.of(saved));
-
-        return ChatMessageResponseDTO.builder()
-                .id(saved.getId())
-                .roomUuid(room.getRoomUuid())  // UUID 반환
-                .senderId(saved.getSenderId())
-                .senderName(saved.getSenderName())
-                .messageType(saved.getMessageType())
-                .content(saved.getContent())
-                .fileUrl(fileUrl)
-                .fileName(saved.getFileName())
-                .fileSize(saved.getFileSize())
-                .timestamp(saved.getTimestamp())
-                .build();
-
     }
 
     private String makePreview(ChatMessageRequest request, ChatMessage saved) {
@@ -98,22 +83,22 @@ public class ChatMessageService {
         }
     }
 
-    // JPA Pageable 방식
-    public List<ChatMessageResponseDTO> getMessagePageable(Long roomId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<ChatMessage> messagePage =
-                chatMessageRepository.findByRoomIdOrderByTimestampDesc(roomId, pageable);
+//    // JPA Pageable 방식
+//    public List<ChatMessageResponseDTO> getMessagePageable(Long roomId, int page, int size) {
+//        Pageable pageable = PageRequest.of(page, size);
+//        Page<ChatMessage> messagePage =
+//                chatMessageRepository.findByRoomIdOrderByTimestampDesc(roomId, pageable);
+//
+//        return mapMessageWithUnreadCount(messagePage.getContent(), roomId);
+//    }
 
-        return mapMessageWithUnreadCount(messagePage.getContent(), roomId);
-    }
-
-    // Native Query 방식
-    public List<ChatMessageResponseDTO> getMessageNative(Long roomId, int page, int size) {
-        int offset = (page - 1) * size;
-        List<ChatMessage> messages =
-                chatMessageRepository.findMessageWithPaging(roomId, size, offset);
-        return mapMessageWithUnreadCount(messages, roomId);
-    }
+//    // Native Query 방식
+//    public List<ChatMessageResponseDTO> getMessageNative(Long roomId, int page, int size) {
+//        int offset = (page - 1) * size;
+//        List<ChatMessage> messages =
+//                chatMessageRepository.findMessageWithPaging(roomId, size, offset);
+//        return mapMessageWithUnreadCount(messages, roomId);
+//    }
 
     // Cursor Before 방식
     @Transactional
@@ -122,65 +107,34 @@ public class ChatMessageService {
                 .orElseThrow(() -> new ChatRoomNotFoundException("채팅방을 찾을 수 없습니다."));
 
         List<ChatMessage> messages = chatMessageRepository.findMessagesBefore(room.getId(), cursorId, limit);
-        return mapMessageWithUnreadCount(messages, room.getId());
+        return mapMessageWithUnreadCount(messages, room.getId(), room.getRoomUuid());
     }
 
-    private List<ChatMessageResponseDTO> mapMessageWithUnreadCount(List<ChatMessage> messages, Long roomId) {
-        List<Object[]> unreadResults = chatRoomUserRepository.countUnreadUsersForMessages(roomId);
+    private List<ChatMessageResponseDTO> mapMessageWithUnreadCount(List<ChatMessage> messages, Long roomId, String roomUuid) {
+        List<UnreadCountProjection> unreadResults = chatRoomUserRepository.countUnreadUsersForMessages(roomId);
         Map<Long, Long> unreadMap = unreadResults.stream()
                 .collect(Collectors.toMap(
-                        row -> ((Number) row[0]).longValue(),
-                        row -> ((Number) row[1]).longValue()
+                        p -> p.getMessageId(),
+                        p -> p.getUnreadCount()
                 ));
-        return convertMessagesWithUnreadMap(messages, unreadMap);
+        return convertMessagesWithUnreadMap(messages, unreadMap, roomUuid);
     }
 
     private List<ChatMessageResponseDTO> convertMessagesWithUnreadMap(
-            List<ChatMessage> messages, Map<Long, Long> unreadMap) {
+            List<ChatMessage> messages, Map<Long, Long> unreadMap, String roomUuid) {
 
         return messages.stream()
-                .map(m -> {
+                .map(message -> {
                     String url = null;
-                    if (m.getFileKey() != null) {
-                        url = presignedUrlService.generatePresignedGetUrl(m.getFileKey());
+                    if (message.getFileKey() != null) {
+                        url = presignedUrlService.generatePresignedGetUrl(message.getFileKey());
                     }
 
-                    return ChatMessageResponseDTO.builder()
-                            .id(m.getId())
-                            .roomUuid(m.getRoom().getRoomUuid())
-                            .senderId(m.getSenderId())
-                            .senderName(m.getSenderName())
-                            .messageType(m.getMessageType())
-                            .content(m.getContent())
-                            .fileUrl(url)
-                            .fileName(m.getFileName())
-                            .fileSize(m.getFileSize())
-                            .timestamp(m.getTimestamp())
-                            .unReadUserCount(unreadMap.getOrDefault(m.getId(), 0L))
-                            .build();
+                    return ChatMessageResponseDTO.from(message, roomUuid, unreadMap.getOrDefault(message.getId(), 0L), url);
                 })
                 .collect(Collectors.toList());
     }
 
-    public void comparePerformance(Long roomId, int page, int size) {
-
-        StopWatch stopWatch = new StopWatch();
-
-        // JPA Pageable
-        stopWatch.start("JPA pageable");
-        List<ChatMessageResponseDTO> pageableResult = getMessagePageable(roomId, page, size);
-        stopWatch.stop();
-
-        // Native Query
-        stopWatch.start("Native Query");
-        int offset = page * size;
-        List<ChatMessageResponseDTO> nativeResult = getMessageNative(roomId, offset, size);
-        stopWatch.stop();
-
-        // 결과 출력
-        System.out.println(stopWatch.prettyPrint());
-
-    }
 
     @Transactional(readOnly = true)
     public List<ChatMessageResponseDTO> getMessagesByRoom(String roomUuid) {
@@ -193,11 +147,11 @@ public class ChatMessageService {
         List<ChatMessage> messages = chatMessageRepository.findMessageWithPaging(roomId, 50, 0);
 
         // 미읽음 카운트 매핑
-        List<Object[]> unreadResults = chatRoomUserRepository.countUnreadUsersForMessages(roomId);
+        List<UnreadCountProjection> unreadResults = chatRoomUserRepository.countUnreadUsersForMessages(roomId);
         Map<Long, Long> unreadMap = unreadResults.stream()
                 .collect(Collectors.toMap(
-                        row -> ((Number) row[0]).longValue(),
-                        row -> ((Number) row[1]).longValue()
+                        p -> p.getMessageId(),
+                        p -> p.getUnreadCount()
                 ));
 
         return messages.stream()

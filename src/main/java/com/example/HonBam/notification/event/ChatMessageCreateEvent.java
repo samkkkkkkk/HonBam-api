@@ -21,10 +21,10 @@ public class ChatMessageCreateEvent {
     private final LocalDateTime createdAt;
 
 
-    public static ChatMessageCreateEvent of(ChatMessage message, List<String> targetUserIds) {
+    public static ChatMessageCreateEvent of(ChatMessage message, String roomUuid,  List<String> targetUserIds) {
         return ChatMessageCreateEvent.builder()
                 .messageId(message.getId())
-                .roomUuid(message.getRoom().getRoomUuid())
+                .roomUuid(roomUuid)
                 .senderId(message.getSenderId())
                 .targetUserIds(targetUserIds)
                 .content(message.getContent())

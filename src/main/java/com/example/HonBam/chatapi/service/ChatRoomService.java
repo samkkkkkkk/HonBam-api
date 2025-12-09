@@ -428,7 +428,7 @@ public class ChatRoomService {
                 cru -> chatMessageRepository.countUnreadMessagesForRoomAndUser(room.getId(), cru.getUser().getId())
         ));
 
-        broadcaster.broadcastRoomSummaryForParticipants(room, participants, unreadMap, null);
+        broadcaster.broadcastRoomSummaryForParticipants(room.getRoomUuid(), participants, unreadMap, null);
     }
 
     @Transactional

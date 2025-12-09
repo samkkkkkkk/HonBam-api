@@ -1,5 +1,7 @@
 package com.example.HonBam.chatapi.repository;
 
+import com.example.HonBam.chatapi.dto.UnreadCountProjection;
+import com.example.HonBam.chatapi.dto.UnreadSummaryProjection;
 import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.ChatRoom;
 import com.example.HonBam.chatapi.entity.ChatRoomUser;
@@ -20,14 +22,13 @@ import java.util.Optional;
 public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long> {
     List<ChatRoomUser> findByRoom(ChatRoom room);
 
+    @Query("SELECT cru FROM ChatRoomUser cru " +
+            "JOIN FETCH cru.user u " +
+            "WHERE cru.room.id = :roomId")
+    List<ChatRoomUser> findWithUserByRoomId(@Param("roomId") Long roomId);
+
     Optional<ChatRoomUser> findByRoomAndUser(ChatRoom room, User user);
 
-    void deleteByRoomAndUser(ChatRoom room, User user);
-
-    void deleteByRoomAndUser_Id(ChatRoom room, String userId);
-
-//    @Query("select cru from ChatRoomUser cru join fetch cru.room r where cru.user.id = :userId")
-//    List<ChatRoomUser> findUsersByUserId(@Param("userId") String userId);
 
     @Query("SELECT DISTINCT cru FROM ChatRoomUser cru " +
             "JOIN FETCH cru.room r " +
@@ -62,7 +63,17 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
             "AND (cu.last_read_message_id IS NULL OR cu.last_read_message_id < m.id) " +
             "AND cu.user_id != m.sender_id " +
             "GROUP BY m.id", nativeQuery = true)
-    List<Object[]> countUnreadUsersForMessages(@Param("roomId") Long roomId);
+    List<UnreadCountProjection> countUnreadUsersForMessages(@Param("roomId") Long roomId);
+
+    @Query(value = "SELECT cru.user_id AS userId, COUNT(m.id) AS unreadCount" +
+            "FROM chat_room_user cru " +
+            "LEFT JOIN chat_message m " +
+            "ON cru.room_id = m.room_id " +
+            "AND m.id > COALESCE(cru.last_message_id, 0) " +
+            "AND m.sender_id <> cru.user_id " +
+            "WHERE cru.room_id = :roomId " +
+            "GROUP BY cru.user_id ", nativeQuery = true)
+    List<UnreadSummaryProjection> countUnreadMessagesForEachUser(@Param("roomId") Long roomId);
 
     @Modifying
     @Query("UPDATE ChatRoomUser cru " +

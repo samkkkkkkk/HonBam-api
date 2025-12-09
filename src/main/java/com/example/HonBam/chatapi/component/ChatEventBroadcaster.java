@@ -46,13 +46,13 @@ public class ChatEventBroadcaster {
     }
 
     // 참여자 전체 요약 브로드캐스트
-    public void broadcastRoomSummaryForParticipants(ChatRoom room, List<ChatRoomUser> participants, Map<String, Long> unreadMap, String excluderUserid) {
+    public void broadcastRoomSummaryForParticipants(String roomUuid , List<ChatRoomUser> participants, Map<String, Long> unreadMap, String excluderUserid) {
         for (ChatRoomUser cru : participants) {
             String userId = cru.getUser().getId();
             if (excluderUserid != null && excluderUserid.equals(userId)) continue;
 
             long count = unreadMap.getOrDefault(userId, 0L);
-            sendRoomSummaryUpdate(userId, room.getRoomUuid(), count);
+            sendRoomSummaryUpdate(userId, roomUuid, count);
         }
     }
 }
