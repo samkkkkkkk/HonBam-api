@@ -15,7 +15,7 @@ public class Recipe {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "data_id")
-    private int dataId;
+    private Long dataId;
 
     @Column(name = "cocktail_name")
     private String cocktailName;

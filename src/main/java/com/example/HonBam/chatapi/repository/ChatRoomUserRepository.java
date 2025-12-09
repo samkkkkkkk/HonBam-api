@@ -65,11 +65,11 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Long
             "GROUP BY m.id", nativeQuery = true)
     List<UnreadCountProjection> countUnreadUsersForMessages(@Param("roomId") Long roomId);
 
-    @Query(value = "SELECT cru.user_id AS userId, COUNT(m.id) AS unreadCount" +
+    @Query(value = "SELECT cru.user_id AS userId, COUNT(m.id) AS unreadCount " +
             "FROM chat_room_user cru " +
             "LEFT JOIN chat_message m " +
             "ON cru.room_id = m.room_id " +
-            "AND m.id > COALESCE(cru.last_message_id, 0) " +
+            "AND m.id > COALESCE(cru.last_read_message_id, 0) " +
             "AND m.sender_id <> cru.user_id " +
             "WHERE cru.room_id = :roomId " +
             "GROUP BY cru.user_id ", nativeQuery = true)

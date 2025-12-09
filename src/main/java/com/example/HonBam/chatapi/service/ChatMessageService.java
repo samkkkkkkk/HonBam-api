@@ -41,6 +41,7 @@ public class ChatMessageService {
     private final ChatRoomUpdateService chatRoomUpdateService;
     private final MessageSaveCoreService messageSaveCoreService;
 
+    @Transactional
     public void saveMessage(ChatMessageRequest request,
                                               String senderId,
                                               String senderName) {
