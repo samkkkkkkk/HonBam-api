@@ -22,6 +22,15 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     @Query("SELECT r FROM ChatRoom r WHERE r.open = true AND r.customName LIKE CONCAT('%', :keyword, '%')")
     List<ChatRoom> searchOpenRooms(@Param("keyword") String keyword);
 
+    @Query("SELECT r FROM ChatRoom r " +
+            "JOIN r.chatRoomUsers u1 " +
+            "JOIN r.chatRoomUsers u2 " +
+            "WHERE u1.user.id = :userId1 " +
+            "AND u2.user.id = :userId2 " +
+            "AND r.isDirect = true")
+    Optional<ChatRoom> findDirectRoom(@Param("userId1") String userId1,
+                                      @Param("userId2") String userId2);
+
     @Modifying
     @Query("UPDATE ChatRoom c " +
             "SET c.lastMessage = :msg, " +
