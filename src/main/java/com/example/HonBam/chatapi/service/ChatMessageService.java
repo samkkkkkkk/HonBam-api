@@ -161,20 +161,7 @@ public class ChatMessageService {
                     if (m.getFileKey() != null) {
                         url = presignedUrlService.generatePresignedGetUrl(m.getFileKey());
                     }
-
-                    return ChatMessageResponseDTO.builder()
-                            .id(m.getId())
-                            .roomUuid(roomUuid)
-                            .senderId(m.getSenderId())
-                            .senderName(m.getSenderName())
-                            .messageType(m.getMessageType())
-                            .content(m.getContent())
-                            .fileUrl(url)
-                            .fileName(m.getFileName())
-                            .fileSize(m.getFileSize())
-                            .timestamp(m.getTimestamp())
-                            .unReadUserCount(unreadMap.getOrDefault(m.getId(), 0L))
-                            .build();
+                    return ChatMessageResponseDTO.from(m, roomUuid, unreadMap.getOrDefault(m.getId(), 0L), url);
                 })
                 .collect(Collectors.toList());
     }

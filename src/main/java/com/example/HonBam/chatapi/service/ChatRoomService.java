@@ -58,12 +58,32 @@ public class ChatRoomService {
     @Transactional
     public ChatRoomResponse createRoom(String requesterId, CreateRoomRequest dto) {
 
+        if (dto.getParticipantIds().contains(requesterId)) {
+            throw new ChatRoomAccessException("본인을 채팅방에 초대할 수 없습니다.");
+        }
         if (!dto.isOpen() && (dto.getParticipantIds() == null || dto.getParticipantIds().isEmpty())) {
             throw new ChatRoomValidationException("일반 채팅방을 생성할 때 최소 1명 이상의 참여자가 필요합니다.");
         }
 
         boolean isDirect = !dto.isOpen() && dto.getParticipantIds() != null && dto.getParticipantIds().size() == 1;
 
+        if (isDirect) {
+            String targetId = dto.getParticipantIds().get(0);
+
+            // 락을 걸고 확인, 이미 있으면 그 방을 바로 리턴
+            ChatRoom existingRoom = checkDirectRoomExistence(requesterId, targetId);
+            if (existingRoom != null) {
+                return ChatRoomResponse.builder()
+                        .roomUuid(existingRoom.getRoomUuid())
+                        .name(resolveDisplayName(existingRoom, requesterId))
+                        .ownerId(existingRoom.getOwnerId())
+                        .direct(existingRoom.isDirect())
+                        .open(existingRoom.isOpen())
+                        .createdAt(existingRoom.getCreatedAt())
+                        .allowJoinAll(existingRoom.isAllowJoinAll())
+                        .build();
+            }
+        }
         // 오픈 채팅방은 반드시 이름 지정해야 함
         if (dto.isOpen() && (dto.getName() == null || dto.getName().isBlank())) {
             throw new ChatRoomValidationException("오픈 채팅방은 이름을 필수로 입력해야 합니다.");
@@ -117,6 +137,19 @@ public class ChatRoomService {
                 .build();
 
     }
+
+    @Transactional
+    public ChatRoom checkDirectRoomExistence(String user1Id, String user2Id) {
+        String firstId = user1Id.compareTo(user2Id) < 0 ? user1Id : user2Id;
+        String secondId = user1Id.compareTo(user2Id) < 0 ? user2Id : user1Id;
+
+        userRepository.findByIdWithLock(firstId);
+        userRepository.findByIdWithLock(secondId);
+
+        return chatRoomRepository.findDirectRoom(user1Id, user2Id)
+                .orElse(null);
+    }
+
     
     // 기존 채팅방에 유저 초대
     @Transactional
