@@ -146,7 +146,7 @@ public class ChatRoomService {
         userRepository.findByIdWithLock(firstId);
         userRepository.findByIdWithLock(secondId);
 
-        return chatRoomRepository.findDirectRoom(user1Id, user2Id)
+        return chatRoomRepository.findDirectRoom(firstId, secondId)
                 .orElse(null);
     }
 

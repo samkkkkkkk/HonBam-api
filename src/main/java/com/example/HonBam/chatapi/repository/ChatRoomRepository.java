@@ -23,13 +23,13 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     List<ChatRoom> searchOpenRooms(@Param("keyword") String keyword);
 
     @Query("SELECT r FROM ChatRoom r " +
-            "JOIN r.chatRoomUsers u1 " +
-            "JOIN r.chatRoomUsers u2 " +
-            "WHERE u1.user.id = :userId1 " +
-            "AND u2.user.id = :userId2 " +
-            "AND r.isDirect = true")
-    Optional<ChatRoom> findDirectRoom(@Param("userId1") String userId1,
-                                      @Param("userId2") String userId2);
+            "JOIN r.participants u1 " +
+            "JOIN r.participants u2 " +
+            "WHERE u1.user.id = :firstId " +
+            "AND u2.user.id = :secondId " +
+            "AND r.direct = true")
+    Optional<ChatRoom> findDirectRoom(@Param("firstId") String firstId,
+                                      @Param("secondId") String secondId);
 
     @Modifying
     @Query("UPDATE ChatRoom c " +
