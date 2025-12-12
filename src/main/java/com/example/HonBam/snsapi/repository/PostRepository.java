@@ -1,6 +1,7 @@
 package com.example.HonBam.snsapi.repository;
 
 import com.example.HonBam.snsapi.entity.Post;
+import com.example.HonBam.snsapi.entity.PostLikeId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;

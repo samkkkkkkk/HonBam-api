@@ -15,6 +15,5 @@ import java.util.List;
 @Builder
 public class PostCreateRequestDTO {
     private String content;
-    private List<String> imageUrls;
-
+    private List<MediaRequestDTO> mediaList;
 }
