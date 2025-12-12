@@ -1,5 +1,6 @@
 package com.example.HonBam.upload.service;
 
+import com.example.HonBam.upload.dto.FileUploadRequest;
 import com.example.HonBam.upload.dto.UploadResponseDTO;
 import io.swagger.v3.oas.annotations.servers.Server;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,9 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +32,12 @@ public class PresignedUrlService {
 
     @Value("${aws.s3.region}")
     private String region;
+
+    public List<UploadResponseDTO> generateUploadUrls(List<FileUploadRequest> requests) {
+        return requests.stream()
+                .map(req -> generateUploadUrl(req.getFileName(), req.getContentType()))
+                .collect(Collectors.toList());
+    }
 
     public UploadResponseDTO generateUploadUrl(String fileName, String contentType) {
         // 파일 경로 생성 (예: 2025-12-07/uuid-test.png)
@@ -79,4 +88,6 @@ public class PresignedUrlService {
 
         return presigned.url().toString();
     }
+
+
 }

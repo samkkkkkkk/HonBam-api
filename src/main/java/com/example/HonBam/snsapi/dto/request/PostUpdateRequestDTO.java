@@ -11,5 +11,5 @@ import java.util.List;
 @ToString
 public class PostUpdateRequestDTO {
     private String content;
-    List<String> imageUrls;
+    private List<MediaRequestDTO> mediaList;
 }
