@@ -328,8 +328,20 @@ public class PostService {
 
         Pageable pageable = PageRequest.of(0, limit);
 
-        List<Post> posts = postRepository.findTodayShotsOrderByLikes(start, end, pageable);
+        List<Long> postIds = postRepository.findTodayShotIds(start, end, pageable).getContent();
 
+        if (postIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Post> posts = postRepository.findAllWithMediaByIdIn(postIds);
+
+        Map<Long, Post> postMap = posts.stream()
+                .collect(Collectors.toMap(Post::getId, p -> p));
+
+        List<Post> sortedPosts = postIds.stream()
+                .map(postMap::get)
+                .collect(Collectors.toList());
         // 작성자 정보 일괄 조회
         Set<String> authorIds = posts.stream()
                 .map(Post::getAuthorId)
@@ -338,8 +350,11 @@ public class PostService {
         Map<String, User> authorMap = userRepository.findAllById(authorIds).stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
 
-        return posts.stream()
-                .map(post -> buildTodayShotDTO(post, authorMap.get(post.getAuthorId())))
+        return sortedPosts.stream()
+                .map(post -> {
+                    User author = authorMap.get(post.getAuthorId());
+                    return buildTodayShotDTO(post, author);
+                })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }

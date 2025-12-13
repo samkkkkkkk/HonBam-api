@@ -46,6 +46,7 @@ public class Post {
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
+    @Builder.Default
     private List<SnsMedia> mediaList = new ArrayList<>();
 
     public void updateContent(String newContent) {

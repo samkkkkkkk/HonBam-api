@@ -64,14 +64,13 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p.likeCount FROM Post p WHERE p.id = :postId")
     Integer findLikeCount(@Param("postId") Long postId);
 
-    @Query("SELECT p " +
+    // 좋아요 순으로 정렬 후 post Id만 가져오기
+    @Query("SELECT p.id " +
             "FROM Post p " +
             "WHERE p.createdAt BETWEEN :start AND :end " +
-            "AND p.imageUrlsJson IS NOT NULL " +
-            "AND p.imageUrlsJson <> '' " +
-            "AND p.imageUrlsJson <> '[]' " +
+            "AND SIZE(p.mediaList) > 0 " +
             "ORDER BY p.likeCount DESC, p.createdAt DESC")
-    List<Post> findTodayShotsOrderByLikes(
+    Page<Long> findTodayShotIds(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
             Pageable pageable
