@@ -1,9 +1,7 @@
 package com.example.HonBam.snsapi.repository;
 
 import com.example.HonBam.snsapi.entity.Post;
-import com.example.HonBam.snsapi.entity.PostLikeId;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -15,6 +13,18 @@ import java.util.List;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findByAuthorIdInOrderByIdDesc(Iterable<String> followingIds, Pageable pageable);
+
+    @Query("SELECT p.id FROM Post p WHERE p.authorId = :authorId ORDER BY p.createdAt DESC")
+    Page<Long> findPostIdsByAuthorId(@Param("authorId") String authorId, Pageable pageable);
+
+    @Query("SELECT DISTINCT p FROM Post p LEFT JOIN FETCH p.mediaList WHERE p.id IN :ids")
+    List<Post> findAllWithMediaByIdIn(@Param("ids") List<Long> ids);
+
+    @Query("SELECT p.id FROM Post p ORDER BY p.createdAt DESC")
+    Page<Long> findAllPostIdsOrderByCreatedAtDesc(Pageable pageable);
+
+    @Query("SELECT p.id FROM Post p ORDER BY p.likeCount DESC")
+    Page<Long> findAllPostIdsOrderByLikeCountDesc(Pageable pageable);
 
     List<Post> findByAuthorIdOrderByCreatedAtDesc(String authorId, Pageable pageable);
 

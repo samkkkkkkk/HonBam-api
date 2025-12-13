@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -50,22 +51,49 @@ public class PostService {
     // 내 게시물 조회
     @Transactional(readOnly = true)
     public List<PostResponseDTO> getMyFeeds(String userId, int page, int size) {
-        List<Post> posts = postRepository.findByAuthorIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size));
-        return convertToDTOList(posts, userId);
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 페이징 -> Id 먼저 조회
+        Page<Long> postIdsPage = postRepository.findPostIdsByAuthorId(userId, pageable);
+        List<Long> postIds = postIdsPage.getContent();
+
+        if (postIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // id 리스트로 Fetch join
+        List<Post> posts = postRepository.findAllWithMediaByIdIn(postIds);
+
+        // id 리스트 순서대로 재정렬
+        Map<Long, Post> postMap = posts.stream()
+                .collect(Collectors.toMap(Post::getId, p -> p));
+
+        List<Post> sortedPosts = postIds.stream()
+                .map(postMap::get)
+                .collect(Collectors.toList());
+
+        return convertToDTOList(sortedPosts, userId);
     }
 
     // 탐색 탭
     @Transactional(readOnly = true)
     public List<PostResponseDTO> getExplorePosts(String userId, String sort, int page, int size) {
-        String sortKey = (sort == null || sort.isBlank()) ? "recent" : sort;
-        List<Post> posts;
-        if ("recent".equalsIgnoreCase(sortKey)) {
-            posts = postRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size));
+        Pageable pageable = PageRequest.of(page, size);
+        List<Long> postIds;
+        if ("recent".equalsIgnoreCase(sort)) {
+            postIds = postRepository.findAllPostIdsOrderByCreatedAtDesc(pageable).getContent();
         } else {
-            posts = postRepository.findAllByOrderByLikeCountDesc(PageRequest.of(page, size));
+            postIds = postRepository.findAllPostIdsOrderByLikeCountDesc(pageable).getContent();
         }
 
-        return convertToDTOList(posts, userId);
+        if (postIds.isEmpty()) return Collections.emptyList();
+
+        List<Post> posts = postRepository.findAllWithMediaByIdIn(postIds);
+
+        Map<Long, Post> postMap = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
+        List<Post> sortedPosts = postIds.stream().map(postMap::get).collect(Collectors.toList());
+
+        return convertToDTOList(sortedPosts, userId);
     }
 
 

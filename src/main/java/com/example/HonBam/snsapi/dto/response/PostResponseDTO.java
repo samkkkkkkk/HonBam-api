@@ -1,6 +1,7 @@
 package com.example.HonBam.snsapi.dto.response;
 
 import com.example.HonBam.snsapi.entity.Post;
+import com.example.HonBam.snsapi.entity.SnsMedia;
 import com.example.HonBam.userapi.entity.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,6 +10,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor
@@ -36,7 +38,7 @@ public class PostResponseDTO {
                 .authorNickname(nickname)
                 .authorProfileUrl(profileUrl)
                 .content(post.getContent())
-                .imageUrls(parseImageUrls(post.getImageUrlsJson()))
+                .imageUrls(extractImageUrls(post))
                 .likeCount(post.getLikeCount())
                 .commentCount(post.getCommentCount())
                 .createdAt(post.getCreatedAt())
@@ -45,21 +47,10 @@ public class PostResponseDTO {
                 .build();
     }
 
-    /**
-     * 이미지 URL JSON 문자열을 List<String>으로 변환
-     * 예: ["a.jpg","b.jpg"] → List.of("a.jpg", "b.jpg")
-     */
-    private static List<String> parseImageUrls(String imageUrlsJson) {
-        if (imageUrlsJson == null || imageUrlsJson.isBlank()) {
-            return Collections.emptyList();
-        }
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(imageUrlsJson, new TypeReference<List<String>>() {});
-        } catch (Exception e) {
-            return Collections.emptyList();
-        }
+    private static List<String> extractImageUrls(Post post) {
+        return post.getMediaList().stream()
+                .map(SnsMedia::getFileUrl)
+                .collect(Collectors.toList());
     }
-
 
 }
