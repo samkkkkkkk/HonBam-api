@@ -25,14 +25,14 @@ public class SnsMedia {
     private Post post;
 
     // S3 object key
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false, length = 500)
     private String fileKey;
 
     // 클라이언트에서 쓸 URL
     @Column(nullable = false, columnDefinition = "TEXT")
     private String fileUrl;
 
-    @Column(name = "content_type", nullable = false, length = 50)
+    @Column(name = "content_type", nullable = false, length = 100)
     private String contentType;
 
     @Column(name = "file_size", nullable = false)

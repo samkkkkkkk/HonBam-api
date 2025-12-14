@@ -2,11 +2,9 @@ package com.example.HonBam.upload.service;
 
 import com.example.HonBam.upload.dto.FileUploadRequest;
 import com.example.HonBam.upload.dto.UploadResponseDTO;
-import io.swagger.v3.oas.annotations.servers.Server;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.awscore.presigner.PresignRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
