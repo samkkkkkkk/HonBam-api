@@ -1,4 +1,4 @@
-package com.example.HonBam.snsapi.entity;
+package com.example.HonBam.upload.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,22 +15,21 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SnsMedia {
+public class Media {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", nullable = false)
-    private Post post;
+    @Column(nullable = false)
+    private String uploaderId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MediaPurpose mediaPurpose;
 
     // S3 object key
-    @Column(nullable = false, length = 500)
+    @Column(nullable = false, length = 500, unique = true)
     private String fileKey;
-
-    // 클라이언트에서 쓸 URL
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String fileUrl;
 
     @Column(name = "content_type", nullable = false, length = 100)
     private String contentType;
@@ -38,14 +37,11 @@ public class SnsMedia {
     @Column(name = "file_size", nullable = false)
     private long fileSize;
 
-    @Column(name = "sort_order", nullable = false)
-    private int sortOrder;
-
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    public void changeSortOrder(int sortOrder) {
-        this.sortOrder = sortOrder;
-    }
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
 }
