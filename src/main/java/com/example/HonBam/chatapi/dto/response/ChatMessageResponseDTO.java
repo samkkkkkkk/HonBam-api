@@ -1,10 +1,11 @@
 package com.example.HonBam.chatapi.dto.response;
 
-import com.example.HonBam.chatapi.entity.ChatMessage;
 import com.example.HonBam.chatapi.entity.MessageType;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 
 @Getter
 @Setter
@@ -23,22 +24,20 @@ public class ChatMessageResponseDTO {
     private String fileName;
     private Long fileSize;
 
+    @Builder.Default
+    private List<FileInfoDTO> files = Collections.emptyList();
+
     private LocalDateTime timestamp;
     private Long unReadUserCount;
 
-    public static ChatMessageResponseDTO from(ChatMessage message, String roomUuid, Long unReadUserCount, String fileUrl) {
-        return ChatMessageResponseDTO.builder()
-                .id(message.getId())
-                .roomUuid(roomUuid)
-                .senderId(message.getSenderId())
-                .senderName(message.getSenderName())
-                .messageType(message.getMessageType())
-                .content(message.getContent())
-                .fileUrl(fileUrl)
-                .fileName(message.getFileName())
-                .fileSize(message.getFileSize())
-                .timestamp(message.getTimestamp())
-                .unReadUserCount(unReadUserCount)
-                .build();
+    @Getter
+    @Builder
+    public static class FileInfoDTO {
+        private Long mediaId;
+        private String fileUrl;
+        private String fileName;
+        private String contentType;
+        private Long fileSize;
     }
+
 }

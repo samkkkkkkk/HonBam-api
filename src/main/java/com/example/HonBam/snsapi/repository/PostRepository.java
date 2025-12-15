@@ -17,7 +17,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p.id FROM Post p WHERE p.authorId = :authorId ORDER BY p.createdAt DESC")
     Page<Long> findPostIdsByAuthorId(@Param("authorId") String authorId, Pageable pageable);
 
-    @Query("SELECT DISTINCT p FROM Post p LEFT JOIN FETCH p.mediaList WHERE p.id IN :ids")
+    @Query("SELECT DISTINCT p " +
+           "FROM Post p " +
+           "LEFT JOIN FETCH p.postMedias pm " +
+           "LEFT JOIN FETCH pm.media " +
+           "WHERE p.id IN :ids ")
     List<Post> findAllWithMediaByIdIn(@Param("ids") List<Long> ids);
 
     @Query("SELECT p.id FROM Post p ORDER BY p.createdAt DESC")
@@ -28,19 +32,13 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     List<Post> findByAuthorIdOrderByCreatedAtDesc(String authorId, Pageable pageable);
 
-    List<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
-    List<Post> findAllByOrderByLikeCountDesc(Pageable pageable);
 
     @Query("SELECT p " +
-            "FROM Post p " +
-            "WHERE p.authorId IN (" +
-            "SELECT f.id.followingId  FROM Follow f WHERE f.id.followerId  = :userId) " +
-            "ORDER BY p.createdAt DESC")
+           "FROM Post p " +
+           "WHERE p.authorId IN (" +
+           "SELECT f.id.followingId  FROM Follow f WHERE f.id.followerId  = :userId) " +
+           "ORDER BY p.createdAt DESC")
     List<Post> findFeedPosts(String userId, Pageable pageable);
-
-    @Modifying
-    @Query("UPDATE Post p SET p.likeCount = :newCount WHERE p.id = :postId")
-    void updateLikeCount(Long postId, int newCount);
 
     // commentCount
     @Modifying
@@ -65,11 +63,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Integer findLikeCount(@Param("postId") Long postId);
 
     // 좋아요 순으로 정렬 후 post Id만 가져오기
-    @Query("SELECT p.id " +
-            "FROM Post p " +
-            "WHERE p.createdAt BETWEEN :start AND :end " +
-            "AND SIZE(p.mediaList) > 0 " +
-            "ORDER BY p.likeCount DESC, p.createdAt DESC")
+    @Query("SELECT DISTINCT p.id " +
+           "FROM Post p " +
+           "JOIN p.postMedias pm " +
+           "WHERE p.createdAt BETWEEN :start AND :end " +
+           "ORDER BY p.likeCount DESC, p.createdAt DESC")
     Page<Long> findTodayShotIds(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,

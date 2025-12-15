@@ -53,9 +53,6 @@ public class User {
     @Builder.Default
     private Role role = Role.COMMON; // 유저 권한
 
-
-    private String profileImg; // 프로필 이미지 경로
-
     private String accessToken; // 카카오 로그인시 발급받는 accessToken을 저장 -> 로그아웃 때 필요
 
     @Enumerated(EnumType.STRING)
@@ -77,10 +74,6 @@ public class User {
 
     public void changeUserName(String name) {
         this.userName = name;
-    }
-
-    public void changeProfileImage(String imageUrl) {
-        this.profileImg = imageUrl;
     }
 
     public void changeLoginProvider(LoginProvider provider) {

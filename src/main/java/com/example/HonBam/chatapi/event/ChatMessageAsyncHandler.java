@@ -2,9 +2,10 @@ package com.example.HonBam.chatapi.event;
 
 import com.example.HonBam.chatapi.component.ChatEventBroadcaster;
 import com.example.HonBam.chatapi.dto.response.ChatMessageResponseDTO;
+import com.example.HonBam.chatapi.entity.ChatMedia;
 import com.example.HonBam.chatapi.entity.ChatMessage;
-import com.example.HonBam.chatapi.entity.ChatRoom;
 import com.example.HonBam.chatapi.entity.ChatRoomUser;
+import com.example.HonBam.chatapi.repository.ChatMediaRepository;
 import com.example.HonBam.chatapi.repository.ChatMessageRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
 import com.example.HonBam.notification.event.ChatMessageCreateEvent;
@@ -14,11 +15,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
@@ -28,11 +29,13 @@ public class ChatMessageAsyncHandler {
 
     private final ChatRoomUserRepository chatRoomUserRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatMediaRepository chatMediaRepository;
     private final ChatEventBroadcaster chatEventBroadcaster;
     private final ApplicationEventPublisher eventPublisher;
     private final PresignedUrlService presignedUrlService;
 
     @Async
+    @Transactional(readOnly = true)
     @TransactionalEventListener
     public void onChatMessageSaved(ChatMessageSavedEvent event) {
 
@@ -47,10 +50,18 @@ public class ChatMessageAsyncHandler {
                     .orElse(null);
             if (message == null) return;
 
-            String fileUrl = message.getFileKey() != null
-                    ? presignedUrlService.generatePresignedGetUrl(message.getFileKey())
-                    : null;
+            // 미디어 파일 조회
+            List<ChatMedia> mediaList = chatMediaRepository.findByMessageId(messageId);
 
+            List<ChatMessageResponseDTO.FileInfoDTO> fileDtos = mediaList.stream()
+                    .map(cm -> ChatMessageResponseDTO.FileInfoDTO.builder()
+                            .mediaId(cm.getMedia().getId())
+                            .fileUrl(presignedUrlService.generatePresignedGetUrl(cm.getMedia().getFileKey()))
+                            .fileName(cm.getMedia().getFileKey())
+                            .contentType(cm.getMedia().getContentType())
+                            .fileSize(cm.getMedia().getFileSize())
+                            .build())
+                    .collect(Collectors.toList());
             // unreadCount 계산
             long unreadCount = chatRoomUserRepository.countUnreadUsersForMessage(roomId, messageId, senderId);
 
@@ -66,8 +77,19 @@ public class ChatMessageAsyncHandler {
                             ));
 
             // 메시지 브로드캐스트
-            chatEventBroadcaster.sendChatMessage(roomUuid, ChatMessageResponseDTO.from(message,roomUuid, unreadCount, fileUrl));
+            ChatMessageResponseDTO responseDTO = ChatMessageResponseDTO.builder()
+                    .id(message.getId())
+                    .roomUuid(roomUuid)
+                    .senderId(message.getSenderId())
+                    .senderName(message.getSenderName())
+                    .messageType(message.getMessageType())
+                    .content(message.getContent())
+                    .timestamp(message.getTimestamp())
+                    .unReadUserCount(unreadCount)
+                    .files(fileDtos)
+                    .build();
 
+            chatEventBroadcaster.sendChatMessage(roomUuid, responseDTO);
             // summary 브로드캐스트
             chatEventBroadcaster.broadcastRoomSummaryForParticipants(roomUuid, participants, unreadMap, senderId);
 

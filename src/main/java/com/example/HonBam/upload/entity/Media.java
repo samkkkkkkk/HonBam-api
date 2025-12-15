@@ -10,7 +10,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "sns_media")
+@Table(name = "media")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

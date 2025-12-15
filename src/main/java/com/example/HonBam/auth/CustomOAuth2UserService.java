@@ -1,9 +1,14 @@
 package com.example.HonBam.auth;
 
 import com.example.HonBam.auth.dto.ProviderProfile;
+import com.example.HonBam.upload.entity.Media;
+import com.example.HonBam.upload.entity.MediaPurpose;
+import com.example.HonBam.upload.repository.MediaRepository;
 import com.example.HonBam.userapi.entity.LoginProvider;
 import com.example.HonBam.userapi.entity.Role;
 import com.example.HonBam.userapi.entity.User;
+import com.example.HonBam.userapi.entity.UserProfileMedia;
+import com.example.HonBam.userapi.repository.UserProfileMediaRepository;
 import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +32,8 @@ import java.util.*;
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
     private final UserRepository userRepository;
+    private final MediaRepository mediaRepository;
+    private final UserProfileMediaRepository userProfileMediaRepository;
 
     @Override
     @Transactional
@@ -40,7 +47,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         ProviderProfile profile = mapProfile(registrationId, attributes);
 
         if (profile.getEmail() == null || profile.getEmail().isBlank()) {
-            throw new OAuth2AuthenticationException(" 네이버 개발자 콘솔의 scope와 서비스 정책을 확인하세요.");
+            throw new OAuth2AuthenticationException(" 서비스 제공자(네이버/카카오)의 이메일 동의가 필요합니다.");
         }
 
         LoginProvider provider = LoginProvider.from(registrationId);
@@ -53,7 +60,6 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                     .userName(profile.getName())
                     .nickname(profile.getNickname())
                     .password(dummyPassword)
-                    .profileImg(profile.getImageUrl())
                     .loginProvider(provider)
                     .role(Role.COMMON)
                     .build();
@@ -66,17 +72,13 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         }
 
         // 프로필 변경분 반영
-        boolean changed = false;
         if (profile.getName() != null && !profile.getName().equals(user.getUserName())) {
             user.changeUserName(profile.getName());
-            changed = true;
-        }
-        if (profile.getImageUrl() != null && !profile.getImageUrl().equals(user.getProfileImg())) {
-            user.changeProfileImage(profile.getImageUrl());
-            changed = true;
-        }
-        if (changed) {
             userRepository.save(user);
+        }
+        // 프로필 이미지 동기화
+        if (profile.getImageUrl() != null && !profile.getImageUrl().isBlank()) {
+            saveOrUpdateExternalProfileImage(user, profile.getImageUrl());
         }
 
         // 권한: 사용자 실제 Role
@@ -90,11 +92,59 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 user,
                 profile.getEmail(),
                 Optional.ofNullable(user.getNickname()).orElse(profile.getName()),
-                user.getProfileImg(),
+                profile.getImageUrl(),
                 attributes,
                 nameAttrKey,
                 authorities
         );
+    }
+
+    // [추가 메서드] 외부 이미지 URL을 Media/UserProfileMedia 테이블에 동기화
+    private void saveOrUpdateExternalProfileImage(User user, String imageUrl) {
+        try {
+            Optional<UserProfileMedia> op = userProfileMediaRepository.findByUser(user);
+
+            if (op.isPresent()) {
+                // 이미 프로필 이미지가 존재하는 경우 -> URL이 바뀌었는지 확인
+                Media existingMedia = op.get().getMedia();
+                if (!imageUrl.equals(existingMedia.getFileKey())) {
+
+                    Media newMedia = createExternalMedia(imageUrl);
+                    mediaRepository.save(newMedia);
+                    
+                    // 기존 media 삭제
+                    userProfileMediaRepository.delete(op.get());
+                    userProfileMediaRepository.flush();
+
+                    UserProfileMedia newLink = UserProfileMedia.builder()
+                            .user(user)
+                            .media(newMedia)
+                            .build();
+                    userProfileMediaRepository.save(newLink);
+                }
+            } else {
+                // 프로필 이미지가 없는 경우 -> 새로 생성
+                Media newMedia = createExternalMedia(imageUrl);
+                mediaRepository.save(newMedia);
+
+                UserProfileMedia newLink = UserProfileMedia.builder()
+                        .user(user)
+                        .media(newMedia)
+                        .build();
+                userProfileMediaRepository.save(newLink);
+            }
+        } catch (Exception e) {
+            log.warn("OAuth2 이미지 동기화 실패: {}", e.getMessage());
+            // 이미지가 실패해도 로그인은 성공해야 함 -> 예외를 던지지 않음
+        }
+    }
+
+    private Media createExternalMedia(String imageUrl) {
+        return Media.builder()
+                .fileKey(imageUrl)
+                .contentType("IMAGE")
+                .mediaPurpose(MediaPurpose.PROFILE)
+                .build();
     }
 
     private ProviderProfile mapProfile(String registrationId, Map<String, Object> attrs) {

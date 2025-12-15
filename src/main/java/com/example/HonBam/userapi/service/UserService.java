@@ -9,11 +9,19 @@ import com.example.HonBam.exception.DuplicateEmailException;
 import com.example.HonBam.exception.InvalidPasswordException;
 import com.example.HonBam.exception.InvalidRefreshTokenException;
 import com.example.HonBam.exception.UserNotFoundException;
+import com.example.HonBam.upload.dto.UploadCompleteRequest;
+import com.example.HonBam.upload.entity.Media;
+import com.example.HonBam.upload.entity.MediaPurpose;
+import com.example.HonBam.upload.repository.MediaRepository;
+import com.example.HonBam.upload.service.PresignedUrlService;
+import com.example.HonBam.upload.service.UploadService;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
 import com.example.HonBam.userapi.dto.response.*;
 import com.example.HonBam.userapi.entity.Role;
 import com.example.HonBam.userapi.entity.User;
+import com.example.HonBam.userapi.entity.UserProfileMedia;
+import com.example.HonBam.userapi.repository.UserProfileMediaRepository;
 import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,17 +37,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional
 public class UserService {
 
     private final UserRepository userRepository;
@@ -48,6 +53,10 @@ public class UserService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final AuthProperties authProperties;
+    private final UploadService uploadService;
+    private final UserProfileMediaRepository userProfileMediaRepository;
+    private final MediaRepository mediaRepository;
+    private final PresignedUrlService presignedUrlService;
 
     @Value("${kakao.client_id}")
     private String KAKAO_CLIENT_ID;
@@ -55,9 +64,6 @@ public class UserService {
     private String KAKAO_REDIRECT_URI;
     @Value("${kakao.client_secret}")
     private String KAKAO_CLIENT_SECRET;
-
-    @Value("${upload.path}")
-    private String uploadRootPath;
 
     private User findUserByToken(TokenUserInfo userInfo) {
         if (userInfo == null || userInfo.getUserId() == null) {
@@ -69,8 +75,7 @@ public class UserService {
 
     // 회원 가입 처리
     public UserSignUpResponseDTO create(
-            final UserRequestSignUpDTO dto,
-            final String uploadedFilePath
+            final UserRequestSignUpDTO dto
     ) {
         String email = dto.getEmail();
 
@@ -82,10 +87,40 @@ public class UserService {
         String encoded = passwordEncoder.encode(dto.getPassword());
         dto.setPassword(encoded);
 
-        User saved = userRepository.save(dto.toEntity(uploadedFilePath));
+        User saved = userRepository.save(dto.toEntity());
+
+        // 프로필 이미지 처리
+        if (dto.getProfileImageKey() != null && !dto.getProfileImageKey().isBlank()) {
+            linkProfileImage(saved, dto.getProfileImageKey());
+        }
         log.info("회원 가입 정상 수행됨! - saved user - {}", saved);
 
         return new UserSignUpResponseDTO(saved);
+    }
+
+    private void linkProfileImage(User user, String fileKey) {
+        try {
+            // 서버에서 S3로 요청 보내기
+            UploadCompleteRequest uploadRequest = UploadCompleteRequest.builder()
+                    .fileKey(fileKey)
+                    .purpose(MediaPurpose.PROFILE) // 목적은 PROFILE로 고정
+                    .build();
+
+            // media 생성, DB에 저장
+            Media savedMedia = uploadService.completeUpload(user.getId(), uploadRequest);
+
+            // UserProfileMedia 연결 및 저장
+            UserProfileMedia userProfileMedia = UserProfileMedia.builder()
+                    .user(user)
+                    .media(savedMedia)
+                    .build();
+
+            userProfileMediaRepository.save(userProfileMedia);
+
+        } catch (Exception e) {
+            log.warn("프로필 이미지 연결 실패: {}", e.getMessage());
+             throw new RuntimeException("프로필 설정 중 오류 발생");
+        }
     }
 
     public boolean isDuplicate(String target, String value) {
@@ -118,30 +153,20 @@ public class UserService {
         return new LoginResponseDTO(saved);
     }
 
-    public String uploadProfileImage(MultipartFile profileImg) throws IOException {
-        File rootDir = new File(uploadRootPath);
-        if (!rootDir.exists()) rootDir.mkdirs();
-
-        String uniqueFileName = UUID.randomUUID() + "_" + profileImg.getOriginalFilename();
-        File uploadFile = new File(uploadRootPath + "/" + uniqueFileName);
-        profileImg.transferTo(uploadFile);
-        return uniqueFileName;
-    }
-
-    public String findProfilePath(String userId) {
-        User user = userRepository.findById(userId).orElseThrow();
-        if (user.getAccessToken() != null) {
-            return user.getProfileImg();
-        }
-        return uploadRootPath + "/" + user.getProfileImg();
-    }
 
     public LoginResponseDTO kakaoService(final String code) {
         Map<String, Object> responseData = getKakaoAccessToken(code);
         KakaoUserDTO dto = getKakaoUserInfo((String) responseData.get("access_token"));
 
         if (!isDuplicate(dto.getKakaoAccount().getEmail(), "email")) {
-            userRepository.save(dto.toEntity((String) responseData.get("access_token")));
+            User user = userRepository.save(dto.toEntity((String) responseData.get("access_token")));
+
+            // 카카오 프로필 이미지 URL 추출
+            String kakaoProfileUrl = dto.getKakaoAccount().getProfile().getProfileImageUrl();
+
+            if (kakaoProfileUrl != null && !kakaoProfileUrl.isBlank()) {
+                saveKakaoProfileImage(user, kakaoProfileUrl);
+            }
         }
         User foundUser = userRepository.findByEmail(dto.getKakaoAccount().getEmail())
                 .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
@@ -167,6 +192,31 @@ public class UserService {
 
         userRepository.save(foundUser);
         return new LoginResponseDTO(foundUser);
+    }
+
+    private void saveKakaoProfileImage(User user, String kakaoProfileUrl) {
+        try {
+            // 1. Media 엔티티 생성 (S3 관련 로직 생략하고 URL만 저장)
+            Media media = Media.builder()
+                    .fileKey(kakaoProfileUrl) // 키 대신 전체 URL 저장
+                    .contentType("IMAGE")       // 카카오는 보통 이미지
+                    .mediaPurpose(MediaPurpose.PROFILE)
+                    .build();
+
+            // 2. Media 저장
+            Media savedMedia = mediaRepository.save(media);
+
+            // 3. UserProfileMedia 연결
+            UserProfileMedia userProfileMedia = UserProfileMedia.builder()
+                    .user(user)
+                    .media(savedMedia)
+                    .build();
+
+            userProfileMediaRepository.save(userProfileMedia);
+
+        } catch (Exception e) {
+            log.warn("카카오 프로필 이미지 저장 실패 (로그인은 진행): {}", e.getMessage());
+        }
     }
 
     private KakaoUserDTO getKakaoUserInfo(String accessToken) {
@@ -291,6 +341,23 @@ public class UserService {
 
         return new RefreshResponseDTO(newAccess, refreshToken);
 
+    }
+
+    public String getProfileUrl(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("유저를 찾을 수 없습니다."));
+
+        return userProfileMediaRepository.findByUser(user)
+                .map(profileMedia -> {
+                    String fileKey = profileMedia.getMedia().getFileKey();
+                    // 1. 카카오 등 외부 URL인 경우
+                    if (fileKey.startsWith("http")) {
+                        return fileKey;
+                    }
+                    // 2. S3 파일인 경우 (Presigned URL 생성)
+                    return presignedUrlService.generatePresignedGetUrl(fileKey);
+                })
+                .orElse(null); // 프로필 사진이 없으면 null 반환
     }
 }
 

@@ -1,6 +1,7 @@
 package com.example.HonBam.chatapi.entity;
 
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -15,9 +16,9 @@ public class ChatMessage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // 메시지 PK
+    private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "room_id", nullable = false)
     private ChatRoom room;
 
@@ -27,27 +28,14 @@ public class ChatMessage {
     @Column(name = "sender_name", nullable = false)
     private String senderName;
 
-    @Column(name = "message_type", nullable = false)
     @Enumerated(EnumType.STRING)
+    @Column(name = "message_type", nullable = false)
     private MessageType messageType;
 
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "file_key", length = 500)
-    private String fileKey;
-
-    @Column(name = "file_name")
-    private String fileName;
-
-    @Column(name = "file_size")
-    private Long fileSize;
-
-    @Column(name = "timestamp", nullable = false)
+    @CreationTimestamp
+    @Column(name = "timestamp", updatable = false)
     private LocalDateTime timestamp;
-
-    @PrePersist
-    public void prePersist() {
-        this.timestamp = LocalDateTime.now();
-    }
 }

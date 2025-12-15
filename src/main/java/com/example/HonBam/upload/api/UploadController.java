@@ -1,20 +1,14 @@
-package com.example.HonBam.upload;
+package com.example.HonBam.upload.api;
 
 import com.example.HonBam.auth.TokenUserInfo;
-import com.example.HonBam.upload.dto.FileUploadRequest;
-import com.example.HonBam.upload.dto.MediaResponseDTO;
-import com.example.HonBam.upload.dto.UploadCompleteRequest;
-import com.example.HonBam.upload.dto.UploadResponseDTO;
+import com.example.HonBam.upload.dto.*;
 import com.example.HonBam.upload.entity.Media;
 import com.example.HonBam.upload.service.PresignedUrlService;
 import com.example.HonBam.upload.service.UploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -27,8 +21,19 @@ public class UploadController {
     private final PresignedUrlService presignedUrlService;
     private final UploadService uploadService;
 
+    @GetMapping("/presigned/profile")
+    public ResponseEntity<UploadResponseDTO> generateProfilePresignedUrl(
+            @RequestBody JoinUploadRequest request
+    ) {
+        UploadResponseDTO response =
+                presignedUrlService.generateProfileUploadUrl(request);
+
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/presigned")
     public ResponseEntity<List<UploadResponseDTO>> generatePresignedUrls(
+            @AuthenticationPrincipal TokenUserInfo userInfo,
             @RequestBody List<FileUploadRequest> requests
     ) {
         return ResponseEntity.ok(

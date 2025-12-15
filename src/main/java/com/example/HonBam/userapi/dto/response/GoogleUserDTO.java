@@ -43,7 +43,6 @@ public class GoogleUserDTO {
                 .email(this.kakaoAccount.email)
                 .userName(this.kakaoAccount.profile.nickname)
                 .password("password!")
-                .profileImg(this.kakaoAccount.profile.profileImageUrl)
                 .accessToken(accessToken)
                 .build();
     }

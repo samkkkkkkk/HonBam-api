@@ -47,7 +47,7 @@ public class Post {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     @Builder.Default
-    private List<SnsMedia> mediaList = new ArrayList<>();
+    private List<PostMedia> postMedias = new ArrayList<>();
 
     public void updateContent(String newContent) {
         if (newContent != null && !newContent.isBlank()) {
@@ -55,17 +55,12 @@ public class Post {
         }
     }
 
-    public void updateMediaList(List<SnsMedia> newMediaList) {
-        this.mediaList.clear();
-        this.mediaList.addAll(newMediaList);
+    public void addPostMedia(PostMedia postMedia) {
+        this.postMedias.add(postMedia);
     }
 
-    public void addMedia(SnsMedia media) {
-        this.mediaList.add(media);
-    }
-
-    public void removeMedia(SnsMedia media) {
-        this.mediaList.remove(media);
+    public void clearPostMedias() {
+        this.postMedias.clear();
     }
 
     public void increaseCommentCount() {

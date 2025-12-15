@@ -6,7 +6,6 @@ import com.example.HonBam.auth.entity.RefreshToken;
 import com.example.HonBam.auth.repository.RefreshTokenRepository;
 import com.example.HonBam.config.AuthProperties;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
-import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
 import com.example.HonBam.userapi.dto.response.LoginResponseDTO;
@@ -22,25 +21,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.util.FileCopyUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.File;
-import java.io.IOException;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @RestController
 @Slf4j
@@ -70,26 +62,20 @@ public class UserController {
 
     // 회원가입
     @PostMapping
-    public ResponseEntity<?> signUp(@Validated @RequestPart("user") UserRequestSignUpDTO dto, @RequestPart(value = "profileImage", required = false) MultipartFile profileImg, BindingResult result) {
+    public ResponseEntity<?> signUp(@Validated @RequestBody UserRequestSignUpDTO dto,  BindingResult result) {
         log.info("/api/auth POST! - {}", dto);
         if (result.hasErrors()) {
             log.warn(result.toString());
             return ResponseEntity.badRequest().body(result.getFieldError());
         }
         try {
-            String uploadedFilePath = null;
-            if (profileImg != null) {
-                log.info("attached file name: {}", profileImg.getOriginalFilename());
-                uploadedFilePath = userService.uploadProfileImage(profileImg);
-            }
-            UserSignUpResponseDTO responseDTO = userService.create(dto, uploadedFilePath);
+            UserSignUpResponseDTO responseDTO = userService.create(dto);
             return ResponseEntity.ok().body(responseDTO);
         } catch (RuntimeException e) {
             log.warn("이메일 중복!");
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             log.warn("기타 예외가 발생했습니다!");
-            e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -141,43 +127,30 @@ public class UserController {
         }
     }
 
-    // 프로필 이미지 요처
+    // 프로필 이미지 요청
     @GetMapping("/profile-image")
     public ResponseEntity<?> loadFile(@AuthenticationPrincipal TokenUserInfo userInfo) {
         log.info("/api/auth/load-profile - GET!, user: {}", userInfo.getUserId());
         try {
-            String filePath = userService.findProfilePath(userInfo.getUserId());
-            File profileFile = new File(filePath);
-            if (!profileFile.exists()) {
-                if (filePath.startsWith("http://")) {
-                    return ResponseEntity.ok().body(filePath);
-                }
-                return ResponseEntity.notFound().build();
+            // 서비스에서 URL 가져오기
+            String profileUrl = userService.getProfileUrl(userInfo.getUserId());
+
+            // 프로필 이미지가 없는 경우 처리 (선택 사항)
+            if (profileUrl == null) {
+                // 프론트엔드와 약속된 기본 이미지 URL을 주거나, null을 리턴
+                return ResponseEntity.ok().body(Map.of("profileUrl", ""));
             }
-            byte[] fileData = FileCopyUtils.copyToByteArray(profileFile);
-            HttpHeaders headers = new HttpHeaders();
-            MediaType contentType = findExtensionAndGetMediaType(filePath);
-            if (contentType == null) {
-                return ResponseEntity.internalServerError().body("발견된 파일은 이미지 파일이 아닙니다.");
-            }
-            headers.setContentType(contentType);
-            return ResponseEntity.ok().headers(headers).body(fileData);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body("파일을 찾을 수 없습니다.");
+
+            // JSON 형태로 URL 반환: { "profileUrl": "https://s3..." }
+            return ResponseEntity.ok().body(Map.of("profileUrl", profileUrl));
+
+        } catch (Exception e) {
+            log.error("프로필 URL 조회 실패", e);
+            return ResponseEntity.internalServerError().body("프로필 정보를 불러오는데 실패했습니다.");
         }
     }
 
-    // 확장자 미디어 파일 추출
-    private MediaType findExtensionAndGetMediaType(String filePath) {
-        String ext = filePath.substring(filePath.lastIndexOf(".") + 1);
-        switch (ext.toUpperCase()) {
-            case "JPG": case "JPEG": return MediaType.IMAGE_JPEG;
-            case "PNG": return MediaType.IMAGE_PNG;
-            case "GIF": return MediaType.IMAGE_GIF;
-            default: return null;
-        }
-    }
+
 
     // 로그인 유효 검사
     @GetMapping("/verify")
@@ -228,18 +201,6 @@ public class UserController {
         }
     }
 
-    // 프로필 이미지 s3 요청
-    @GetMapping("/profile-s3")
-    public ResponseEntity<?> s3Profile(@AuthenticationPrincipal TokenUserInfo userInfo) {
-        try {
-            String profilePath = userService.findProfilePath(userInfo.getUserId());
-            return ResponseEntity.ok().body(profilePath);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
     // 유저 정보 요청
     @GetMapping("/userinfo")
     public ResponseEntity<?> userInfo(@AuthenticationPrincipal TokenUserInfo userInfo) {
@@ -258,85 +219,6 @@ public class UserController {
         }
 
         RefreshResponseDTO dto = userService.refreshToken(refresh);
-//        String refreshHash = tokenProvider.hashRefreshToken(refresh);
-//        String redisKey = "refresh:" + refreshHash;
-//
-//        // Redis 조회
-//        boolean redisFail = false;
-//        String userId = null;
-//
-//        try {
-//            Object userIdObj = redisTemplate.opsForValue().get(redisKey);
-//            if (userIdObj != null) {
-//                userId = userIdObj.toString();
-//            }
-//        } catch (Exception e) {
-//            redisFail = true;
-//            log.warn("Redis 서버 연동 실패 {}", e.getMessage());
-//        }
-//
-//        if (!redisFail && userId == null) {
-//            return ResponseEntity.status(401).body("INVALID_REFRESH_TOKEN");
-//        }
-//
-//        // DB 검증
-//        RefreshToken rt = refreshTokenRepository.findByTokenHash(refreshHash)
-//                .orElse(null);
-//        if (rt == null || rt.isRevoked()) {
-//            return ResponseEntity.status(401).body("REFRESH_TOKEN_REVOKED");
-//        }
-//
-//        if (rt.getExpiredAt().isBefore(LocalDateTime.now())) {
-//            return ResponseEntity.status(401).body("REFRESH_TOKEN_EXPIRED");
-//        }
-//
-//        if (userId == null) {
-//            userId = rt.getUserId();
-//        }
-//
-//        User user = userRepository.findById(userId)
-//                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
-//
-//        // 기존 refreshToken 사용 완료 처리
-//        rt.revoke();
-//
-//        // 새로운 access token 발급
-//        String newAccess = tokenProvider.createAccessToken(user);
-//
-//        if (redisFail) {
-//            try {
-//                redisTemplate.opsForValue()
-//                        .set(redisKey, userId, authProperties.getToken().getRefreshExpireDuration());
-//                log.info("Redis 복구 완료");
-//            } catch (Exception e) {
-//                log.warn("Redis 저장 실패 {}", e.getMessage());
-//            }
-//        }
-//
-//        String refreshToken = tokenProvider.createRefreshToken(user);
-//        String newRefreshHash = tokenProvider.hashRefreshToken(refreshToken);
-//        String newRedisKey = "refresh:" + newRefreshHash;
-//
-//        if (!redisFail) {
-//            try {
-//                redisTemplate.delete(redisKey);
-//                redisTemplate.opsForValue()
-//                        .set(newRedisKey, userId, authProperties.getToken().getRefreshExpireDuration());
-//            } catch (Exception e) {
-//                log.warn("Redis 저장 실패 {}", e.getMessage());
-//
-//            }
-//        }
-//
-//        // DB에 새 refresh 저장
-//        RefreshToken newRefresh = RefreshToken.builder()
-//                .userId(user.getId())
-//                .tokenHash(newRefreshHash)
-//                .revoked(false)
-//                .expiredAt(LocalDateTime.now().plus(authProperties.getToken().getRefreshExpireDuration()))
-//                .deviceInfo("local-login")
-//                .build();
-//        refreshTokenRepository.save(newRefresh);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE,

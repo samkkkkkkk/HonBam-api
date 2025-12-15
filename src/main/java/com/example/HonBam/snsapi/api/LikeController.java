@@ -2,9 +2,7 @@ package com.example.HonBam.snsapi.api;
 
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.snsapi.service.LikeService;
-import com.example.HonBam.snsapi.service.SnsService;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.hql.internal.ast.tree.ResolvableNode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;

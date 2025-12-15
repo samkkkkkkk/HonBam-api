@@ -7,7 +7,9 @@ import com.example.HonBam.snsapi.entity.Follow;
 import com.example.HonBam.snsapi.entity.FollowId;
 import com.example.HonBam.snsapi.repository.FollowRepository;
 import com.example.HonBam.snsapi.repository.PostRepository;
+import com.example.HonBam.upload.service.PresignedUrlService;
 import com.example.HonBam.userapi.entity.User;
+import com.example.HonBam.userapi.repository.UserProfileMediaRepository;
 import com.example.HonBam.userapi.repository.UserRepository;
 import com.example.HonBam.util.PostUtils;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +30,9 @@ public class FollowService {
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
-    private final PostUtils postUtils;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserProfileMediaRepository userProfileMediaRepository;
+    private final PresignedUrlService presignedUrlService;
 
     // 팔로우 등록
     public void follow(String userId, String targetId) {
@@ -92,9 +95,15 @@ public class FollowService {
             following = followRepository.existsById(new FollowId(viewerId, targetId));
         }
 
-        String profileImageUrl = postUtils.buildProfileUrl(targetUser);
+        String profileImageUrl = resolveAuthorProfileUrl(targetUser);
 
         return UserFollowResponseDTO.from(targetId, targetUser.getNickname(), profileImageUrl, followerCount, followingCount, following, postCount);
 
+    }
+
+    private String resolveAuthorProfileUrl(User author) {
+        return userProfileMediaRepository.findByUser(author)
+                .map(u -> presignedUrlService.generatePresignedGetUrl(u.getMedia().getFileKey()))
+                .orElse(null);
     }
 }

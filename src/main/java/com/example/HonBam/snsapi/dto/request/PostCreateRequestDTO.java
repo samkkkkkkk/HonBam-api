@@ -1,10 +1,7 @@
 package com.example.HonBam.snsapi.dto.request;
 
-import com.example.HonBam.snsapi.entity.Post;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.*;
 
-import java.util.Collections;
 import java.util.List;
 
 @Getter
@@ -15,5 +12,5 @@ import java.util.List;
 @Builder
 public class PostCreateRequestDTO {
     private String content;
-    private List<MediaRequestDTO> mediaList;
+    private List<Long> mediaIds;
 }

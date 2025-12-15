@@ -1,7 +1,9 @@
 package com.example.HonBam.upload.service;
 
 import com.example.HonBam.upload.dto.FileUploadRequest;
+import com.example.HonBam.upload.dto.JoinUploadRequest;
 import com.example.HonBam.upload.dto.UploadResponseDTO;
+import com.example.HonBam.upload.entity.MediaPurpose;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -33,13 +35,13 @@ public class PresignedUrlService {
 
     public List<UploadResponseDTO> generateUploadUrls(List<FileUploadRequest> requests) {
         return requests.stream()
-                .map(req -> generateUploadUrl(req.getFileName(), req.getContentType()))
+                .map(req -> generateUploadUrl(req.getFileName(), req.getContentType(), req.getMediaPurpose()))
                 .collect(Collectors.toList());
     }
 
-    public UploadResponseDTO generateUploadUrl(String fileName, String contentType) {
+    public UploadResponseDTO generateUploadUrl(String fileName, String contentType, MediaPurpose mediaPurpose) {
         // 파일 경로 생성 (예: 2025-12-07/uuid-test.png)
-        String objectName = LocalDate.now() + "/" + UUID.randomUUID() + "-" + fileName;
+        String objectName = buildFileKey(mediaPurpose.getPrefix(), fileName);
 
         // S3에 저장될 파일 정보
         PutObjectRequest objectRequest = PutObjectRequest.builder()
@@ -66,8 +68,9 @@ public class PresignedUrlService {
 
         return UploadResponseDTO.builder()
                 .uploadUrl(uploadUrl)
-                .fileUrl(downloadUrl)
-                .fileName(objectName)
+                .fileKey(objectName)
+                .fileName(fileName)
+                .purpose(mediaPurpose)
                 .build();
     }
 
@@ -87,5 +90,50 @@ public class PresignedUrlService {
         return presigned.url().toString();
     }
 
+
+    public UploadResponseDTO generateProfileUploadUrl(JoinUploadRequest request) {
+        if (!request.getContentType().startsWith("image/")) {
+            throw new IllegalArgumentException("프로필은 이미지 파일만 허용됩니다.");
+        }
+
+        String objectKey = buildFileKey("profile", request.getFileName());
+
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(objectKey)
+                .contentType(request.getContentType())
+                .build();
+
+        PutObjectPresignRequest presignRequest =
+                PutObjectPresignRequest.builder()
+                        .signatureDuration(Duration.ofMinutes(3)) // 짧게
+                        .putObjectRequest(putObjectRequest)
+                        .build();
+
+        PresignedPutObjectRequest presigned =
+                presigner.presignPutObject(presignRequest);
+
+        return UploadResponseDTO.builder()
+                .uploadUrl(presigned.url().toString())
+                .fileKey(objectKey)
+                .build();
+
+    }
+
+    private String buildFileKey(String prefix, String originalFileName) {
+        String ext = extractExtension(originalFileName);
+        return String.format(
+                "%s/%s/%s%s",
+                prefix,
+                LocalDate.now(),
+                UUID.randomUUID(),
+                ext
+        );
+    }
+
+    private String extractExtension(String fileName) {
+        int idx = fileName.lastIndexOf('.');
+        return (idx > 0) ? fileName.substring(idx) : "";
+    }
 
 }

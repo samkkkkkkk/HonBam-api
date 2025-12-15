@@ -10,15 +10,19 @@ import com.example.HonBam.snsapi.entity.Comment;
 import com.example.HonBam.snsapi.entity.Post;
 import com.example.HonBam.snsapi.repository.CommentRepository;
 import com.example.HonBam.snsapi.repository.PostRepository;
-import com.example.HonBam.userapi.entity.LoginProvider;
+import com.example.HonBam.upload.service.PresignedUrlService;
 import com.example.HonBam.userapi.entity.User;
+import com.example.HonBam.userapi.repository.UserProfileMediaRepository;
 import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +33,8 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final UserProfileMediaRepository userProfileMediaRepository;
+    private final PresignedUrlService presignedUrlService;
 
     public User getAuthor(String authorId) {
         return userRepository.findById(authorId)
@@ -144,16 +150,10 @@ public class CommentService {
         return roots;
     }
 
-    private String buildProfileUrl(User author) {
-        if (author.getLoginProvider() != LoginProvider.LOCAL) {
-            return author.getProfileImg();
-        }
-
-        if (author.getProfileImg() == null) {
-            return "default-profile.png";
-        }
-
-        return "uploads/" + author.getProfileImg();
+    private String resolveAuthorProfileUrl(User author) {
+        return userProfileMediaRepository.findByUser(author)
+                .map(u -> presignedUrlService.generatePresignedGetUrl(u.getMedia().getFileKey()))
+                .orElse(null);
     }
 
     private CommentResponseDTO convertToCommentDTO(Comment comment) {
@@ -161,7 +161,7 @@ public class CommentService {
                 .orElseThrow(() -> new UserNotFoundException("댓글 작성자를 찾을 수 없습니다."));
 
         String authorNickname = author.getNickname();
-        String profileUrl = buildProfileUrl(author);
+        String profileUrl = resolveAuthorProfileUrl(author);
 
         return CommentResponseDTO.from(comment, authorNickname, profileUrl);
     }

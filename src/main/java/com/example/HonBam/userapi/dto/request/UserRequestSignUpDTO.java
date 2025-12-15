@@ -29,18 +29,18 @@ public class UserRequestSignUpDTO {
     @Size(min = 2, max = 6)
     private String userName;
 
+    private String profileImageKey;
 
     private String address;
 
     // dto를 Entity로 변경하는 메서드
-    public User toEntity(String uploadedFilePath) {
+    public User toEntity() {
         return User.builder()
                 .email(this.email)
                 .phoneNumber(this.phoneNumber)
                 .password(this.password)
                 .userName(this.userName)
                 .address(this.address)
-                .profileImg(uploadedFilePath)
                 .nickname(this.nickname)
                 .build();
     }

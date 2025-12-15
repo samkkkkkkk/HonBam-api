@@ -88,12 +88,13 @@ public class WebSecurityConfig {
                         .antMatchers(HttpMethod.GET,"/api/freeboard/**").permitAll()
                         .antMatchers(HttpMethod.GET,"/api/posts/**").permitAll()
                         .antMatchers(HttpMethod.GET,"/api/sns/feed/**").permitAll()
+                        .antMatchers(HttpMethod.GET,"/api/upload/presigned/profile").permitAll()
 
                         // swagger
                         .antMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/swagger-resources", "/webjars/**").permitAll()
 
                         // upload 관련 조회를 제외한 요청 인증
-                        .antMatchers("/uploads/**").authenticated()
+                        .antMatchers("/api/upload/**").authenticated()
 
                         // posts - 조회만 공개
                         .antMatchers( "/api/posts/**").authenticated()

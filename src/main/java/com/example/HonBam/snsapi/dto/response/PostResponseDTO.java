@@ -1,16 +1,10 @@
 package com.example.HonBam.snsapi.dto.response;
 
 import com.example.HonBam.snsapi.entity.Post;
-import com.example.HonBam.snsapi.entity.SnsMedia;
-import com.example.HonBam.userapi.entity.User;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor
@@ -19,38 +13,38 @@ import java.util.stream.Collectors;
 @ToString
 @EqualsAndHashCode
 public class PostResponseDTO {
-    private Long id;
-    private String authorId;
-    private String authorNickname;
-    private String authorProfileUrl;
+
+
+    private Long postId;
     private String content;
-    private List<String> imageUrls;
     private int likeCount;
     private int commentCount;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private boolean likeByMe;
+    private boolean liked;
 
-    public static PostResponseDTO from(Post post, boolean likeByMe, String nickname, String profileUrl) {
+    private String authorNickname;
+    private String authorProfileUrl;
+
+    private List<PostMediaResponseDTO> medias;
+    private LocalDateTime createdAt;
+
+    public static PostResponseDTO from(
+            Post post,
+            boolean liked,
+            String authorNickname,
+            String authorProfileUrl,
+            List<PostMediaResponseDTO> medialist
+    ) {
+
         return PostResponseDTO.builder()
-                .id(post.getId())
-                .authorId(post.getAuthorId())
-                .authorNickname(nickname)
-                .authorProfileUrl(profileUrl)
+                .postId(post.getId())
                 .content(post.getContent())
-                .imageUrls(extractImageUrls(post))
                 .likeCount(post.getLikeCount())
                 .commentCount(post.getCommentCount())
+                .liked(liked)
+                .authorNickname(authorNickname)
+                .authorProfileUrl(authorProfileUrl)
+                .medias(medialist)
                 .createdAt(post.getCreatedAt())
-                .updatedAt(post.getUpdatedAt())
-                .likeByMe(likeByMe)
                 .build();
     }
-
-    private static List<String> extractImageUrls(Post post) {
-        return post.getMediaList().stream()
-                .map(SnsMedia::getFileUrl)
-                .collect(Collectors.toList());
-    }
-
 }

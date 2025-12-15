@@ -1,15 +1,13 @@
 package com.example.HonBam.upload.dto;
 
-import com.example.HonBam.upload.entity.MediaPurpose;
 import lombok.*;
 
 @Getter
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @ToString
 @EqualsAndHashCode
-public class FileUploadRequest {
+public class JoinUploadRequest {
     private String fileName;
     private String contentType;
-    private MediaPurpose mediaPurpose;
 }

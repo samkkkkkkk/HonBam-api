@@ -11,5 +11,5 @@ import java.util.List;
 @ToString
 public class PostUpdateRequestDTO {
     private String content;
-    private List<MediaRequestDTO> mediaList;
+    private List<Long> mediaIds;
 }

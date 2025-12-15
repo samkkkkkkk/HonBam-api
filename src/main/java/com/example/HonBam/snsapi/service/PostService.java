@@ -3,21 +3,23 @@ package com.example.HonBam.snsapi.service;
 import com.example.HonBam.exception.CustomUnauthorizedException;
 import com.example.HonBam.exception.PostNotFoundException;
 import com.example.HonBam.exception.UserNotFoundException;
-import com.example.HonBam.snsapi.dto.request.MediaRequestDTO;
 import com.example.HonBam.snsapi.dto.request.PostCreateRequestDTO;
 import com.example.HonBam.snsapi.dto.request.PostUpdateRequestDTO;
+import com.example.HonBam.snsapi.dto.response.PostMediaResponseDTO;
 import com.example.HonBam.snsapi.dto.response.PostResponseDTO;
 import com.example.HonBam.snsapi.dto.response.TodayShotResponseDTO;
 import com.example.HonBam.snsapi.entity.Post;
 import com.example.HonBam.snsapi.entity.PostLikeId;
-import com.example.HonBam.snsapi.entity.SnsMedia;
+import com.example.HonBam.snsapi.entity.PostMedia;
 import com.example.HonBam.snsapi.repository.PostLikeRepository;
 import com.example.HonBam.snsapi.repository.PostRepository;
+import com.example.HonBam.upload.entity.Media;
+import com.example.HonBam.upload.repository.MediaRepository;
+import com.example.HonBam.upload.service.PresignedUrlService;
 import com.example.HonBam.userapi.entity.User;
+import com.example.HonBam.userapi.entity.UserProfileMedia;
+import com.example.HonBam.userapi.repository.UserProfileMediaRepository;
 import com.example.HonBam.userapi.repository.UserRepository;
-import com.example.HonBam.util.PostUtils;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -39,8 +41,9 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
-    private final PostUtils postUtils;
-    private final ObjectMapper objectMapper;
+    private final MediaRepository mediaRepository;
+    private final PresignedUrlService presignedUrlService;
+    private final UserProfileMediaRepository userProfileMediaRepository;
 
     // 작성자 추출 메서드
     private User getAuthor(String authorId) {
@@ -107,9 +110,6 @@ public class PostService {
     // 게시물 등록
     @Transactional
     public PostResponseDTO createPost(String userId, PostCreateRequestDTO requestDTO) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
-
 
         Post post = Post.builder()
                 .authorId(userId)
@@ -118,24 +118,43 @@ public class PostService {
                 .commentCount(0)
                 .build();
 
-        // Media 저장
-        List<SnsMedia> mediaList = new ArrayList<>();
-        for (MediaRequestDTO m : requestDTO.getMediaList()) {
-            SnsMedia media = SnsMedia.builder()
-                    .post(post)
-                    .fileKey(m.getFileKey())
-                    .fileUrl(m.getFileUrl())
-                    .contentType(m.getContentType())
-                    .fileSize(m.getFileSize())
-                    .sortOrder(m.getSortOrder())
-                    .build();
-            mediaList.add(media);
+        if (requestDTO.getMediaIds() != null) {
+            int order = 0;
+            for (Long mediaId : requestDTO.getMediaIds()) {
+
+                Media media = mediaRepository.findById(mediaId)
+                        .orElseThrow(() -> new IllegalArgumentException("Media not found: " + mediaId));
+
+                // 소유자 검증
+                if (!media.getUploaderId().equals(userId)) {
+                    throw new CustomUnauthorizedException("본인의 미디어만 사용할 수 있습니다.");
+                }
+
+                post.addPostMedia(
+                        PostMedia.builder()
+                                .post(post)
+                                .media(media)
+                                .sortOrder(order++)
+                                .build()
+                );
+            }
         }
 
-        post.getMediaList().addAll(mediaList);
+        User author = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("작성자를 찾을 수 없습니다."));
 
         Post saved = postRepository.save(post);
-        return convertToDTO(saved, userId, user, false);
+
+        String authorProfileUrl = resolveAuthorProfileUrl(author);
+
+        List<PostMediaResponseDTO> mediaResponseList = buildPostMediaResponses(saved);
+
+        return PostResponseDTO.from(
+                saved,
+                false,
+                author.getNickname(),
+                authorProfileUrl,
+                mediaResponseList
+        );
     }
 
     // 게시물 상세 조회
@@ -149,67 +168,57 @@ public class PostService {
 
         boolean liked = isPostLikedByUser(viewerId, post.getId());
 
-        return convertToDTO(post, viewerId, author, liked);
+        String authorProfileUrl = resolveAuthorProfileUrl(author);
+
+        return convertToDTO(post, author, liked, authorProfileUrl);
     }
 
     // 게시글 수정
     @Transactional
-    public PostResponseDTO updatePost(String userId, Long postId, PostUpdateRequestDTO requestDTO) {
+    public PostResponseDTO updatePost(
+            String userId,
+            Long postId,
+            PostUpdateRequestDTO requestDTO
+    ) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new PostNotFoundException("게시글을 찾을 수 없습니다."));
 
         if (!post.getAuthorId().equals(userId)) {
             throw new CustomUnauthorizedException("본인의 게시글만 수정할 수 있습니다.");
         }
+
         post.updateContent(requestDTO.getContent());
+        post.clearPostMedias();
 
-        List<SnsMedia> oldList = post.getMediaList();
+        if (requestDTO.getMediaIds() != null) {
+            int order = 0;
+            for (Long mediaId : requestDTO.getMediaIds()) {
+                Media media = mediaRepository.findById(mediaId)
+                        .orElseThrow(() -> new IllegalArgumentException("Media not found: " + mediaId));
 
-        List<MediaRequestDTO> newList = requestDTO.getMediaList();
-
-        // 기존 리스트와 newList 비교하여 삭제 처리
-        // newList에 없는 fileKey는 제거
-        List<String> newFileKeys = newList.stream()
-                .map(MediaRequestDTO::getFileKey)
-                .collect(Collectors.toList());
-
-        List<SnsMedia> toRemove = oldList.stream()
-                .filter(media -> !newFileKeys.contains(media.getFileKey()))
-                .collect(Collectors.toList());
-
-        toRemove.forEach(post::removeMedia);
-
-        // 5) 추가 처리 + sortOrder 업데이트
-        for (MediaRequestDTO dto : newList) {
-            SnsMedia existing = oldList.stream()
-                    .filter(m -> m.getFileKey().equals(dto.getFileKey()))
-                    .findFirst()
-                    .orElse(null);
-
-            if (existing == null) {
-                // 새 미디어 추가
-                SnsMedia newMedia = SnsMedia.builder()
-                        .post(post)
-                        .fileKey(dto.getFileKey())
-                        .fileUrl(dto.getFileUrl())
-                        .contentType(dto.getContentType())
-                        .fileSize(dto.getFileSize())
-                        .sortOrder(dto.getSortOrder())
-                        .build();
-
-                post.addMedia(newMedia);
-            } else {
-                // 기존 미디어 정렬 순서만 도메인 메서드로 수정
-                existing.changeSortOrder(dto.getSortOrder());
+                post.addPostMedia(
+                        PostMedia.builder()
+                                .post(post)
+                                .media(media)
+                                .sortOrder(order++)
+                                .build()
+                );
             }
         }
 
-        User author = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("작성자를 찾을 수 없습니다."));
-
+        User author = getAuthor(post.getAuthorId());
         boolean liked = isPostLikedByUser(userId, postId);
 
-        return convertToDTO(post, userId, author, liked);
+        List<PostMediaResponseDTO> mediaResponseList = buildPostMediaResponses(post);
+        String authorProfileUrl = resolveAuthorProfileUrl(author);
+
+        return PostResponseDTO.from(
+                post,
+                liked,
+                author.getNickname(),
+                authorProfileUrl,
+                mediaResponseList
+        );
     }
 
 
@@ -251,6 +260,16 @@ public class PostService {
         Map<String, User> authorMap = userRepository.findAllById(authorIds).stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
 
+        // 작성자들의 프로필 일괄 조회
+        List<UserProfileMedia> profiles = userProfileMediaRepository.findByUser_IdIn(authorIds);
+
+        // 프로필 이미지 Key를 Map으로 변환
+        Map<String, String> profileKeyMap = profiles.stream()
+                .collect(Collectors.toMap(
+                        pm -> pm.getUser().getId(),
+                        pm -> pm.getMedia().getFileKey(),
+                        (existing, replacement) -> existing
+                ));
         // 좋아요 정보 일괄 조회
         List<Long> postIds = posts.stream()
                 .map(Post::getId)
@@ -271,7 +290,11 @@ public class PostService {
                         return null;
                     }
                     boolean liked = likedPostIds.contains(post.getId());
-                    return convertToDTO(post, viewerId, author, liked);
+                    String profileKey = profileKeyMap.get(author.getId());
+                    String profileUrl = (profileKey != null)
+                            ? presignedUrlService.generatePresignedGetUrl(profileKey)
+                            : null;
+                    return convertToDTO(post, author, liked, profileUrl);
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
@@ -279,12 +302,10 @@ public class PostService {
 
     }
 
-    private TodayShotResponseDTO buildTodayShotDTO(Post post, User author) {
+    private TodayShotResponseDTO buildTodayShotDTO(Post post, User author, String profileUrl) {
 
-        List<SnsMedia> mediaList = post.getMediaList();
-
-        // 이미지가 없으면 null 반환
-        if (mediaList == null || mediaList.isEmpty()) {
+        List<PostMedia> postMedias = post.getPostMedias();
+        if (postMedias == null || postMedias.isEmpty()) {
             return null;
         }
         if (author == null) {
@@ -292,32 +313,43 @@ public class PostService {
             return null;
         }
 
-        String authorProfileUrl = postUtils.buildProfileUrl(author);
-
-        List<String> imageUrls = mediaList.stream()
-                .sorted(Comparator.comparingInt(SnsMedia::getSortOrder))
-                .map(SnsMedia::getFileUrl)
+        List<String> imageUrls = postMedias.stream()
+                .sorted(Comparator.comparingInt(PostMedia::getSortOrder))
+                .map(pm -> presignedUrlService.generatePresignedGetUrl(pm.getMedia().getFileKey())) // 👈 여기!
                 .collect(Collectors.toList());
+
+        String firstImageUrl = imageUrls.isEmpty() ? null : imageUrls.get(0);
 
         return TodayShotResponseDTO.builder()
                 .postId(post.getId())
-                .firstImageUrl(imageUrls.get(0))
+                .firstImageUrl(firstImageUrl)
                 .imageUrls(imageUrls)
                 .content(post.getContent())
                 .likeCount(post.getLikeCount())
                 .authorNickname(author.getNickname())
-                .authorProfileUrl(authorProfileUrl)
+                .authorProfileUrl(profileUrl)
                 .build();
-
     }
 
     // nickname과 profileUrl을 포함하여 DTO로 변환
-    private PostResponseDTO convertToDTO(Post post, String viewerId, User author, boolean liked) {
-        String nickname = author.getNickname();
-        String profileUrl = postUtils.buildProfileUrl(author);
-        return PostResponseDTO.from(post, liked, nickname, profileUrl);
-    }
+    private PostResponseDTO convertToDTO(Post post, User author, boolean liked, String profileUrl) {
 
+        List<PostMediaResponseDTO> mediaResponseList = post.getPostMedias().stream()
+                // .sorted(...) // Post 엔티티에서 @OrderBy를 썼다면 생략 가능, 아니면 정렬 수행
+                .map(pm -> {
+                    String mediaUrl = presignedUrlService.generatePresignedGetUrl(pm.getMedia().getFileKey());
+                    return PostMediaResponseDTO.from(pm, mediaUrl);
+                })
+                .collect(Collectors.toList());
+
+        return PostResponseDTO.from(
+                post,
+                liked,
+                author.getNickname(),
+                profileUrl,
+                mediaResponseList
+        );
+    }
 
     // 오늘의 인증샷 조회
     @Transactional(readOnly = true)
@@ -350,30 +382,45 @@ public class PostService {
         Map<String, User> authorMap = userRepository.findAllById(authorIds).stream()
                 .collect(Collectors.toMap(User::getId, user -> user));
 
+        List<UserProfileMedia> profiles = userProfileMediaRepository.findByUser_IdIn(authorIds);
+        Map<String, String> profileKeyMap = profiles.stream()
+                .collect(Collectors.toMap(
+                        pm -> pm.getUser().getId(),
+                        pm -> pm.getMedia().getFileKey(),
+                        (existing, replacement) -> existing
+                ));
+
         return sortedPosts.stream()
                 .map(post -> {
                     User author = authorMap.get(post.getAuthorId());
-                    return buildTodayShotDTO(post, author);
+
+                    String profileKey = profileKeyMap.get(author.getId());
+                    String profileUrl = (profileKey != null)
+                            ? presignedUrlService.generatePresignedGetUrl(profileKey)
+                            : null;
+
+                    return buildTodayShotDTO(post, author, profileUrl);
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
-    private List<String> extractImageUrls(String imageUrlsJson) {
-        if (imageUrlsJson == null || imageUrlsJson.isBlank()) {
-            return Collections.emptyList();
-        }
+    private String resolveAuthorProfileUrl(User author) {
+        return userProfileMediaRepository.findByUser(author)
+                .map(u -> presignedUrlService.generatePresignedGetUrl(u.getMedia().getFileKey()))
+                .orElse(null);
+    }
 
-        try {
-            List<String> urls = objectMapper.readValue(
-                    imageUrlsJson,
-                    new TypeReference<List<String>>() {}
-            );
-            return (urls == null) ? Collections.emptyList() : urls;
-        } catch (Exception e) {
-            log.warn("imageUrlsJson 파싱 실패: {}", imageUrlsJson, e);
-            return Collections.emptyList();
-        }
+    private List<PostMediaResponseDTO> buildPostMediaResponses(Post post) {
+        return post.getPostMedias().stream()
+                .map(pm -> {
+                    String mediaUrl =
+                            presignedUrlService.generatePresignedGetUrl(
+                                    pm.getMedia().getFileKey()
+                            );
+                    return PostMediaResponseDTO.from(pm, mediaUrl);
+                })
+                .collect(Collectors.toList());
     }
 
 }
