@@ -1,6 +1,7 @@
-package com.example.HonBam.auth;
+package com.example.HonBam.auth.service;
 
-import com.example.HonBam.auth.dto.ProviderProfile;
+import com.example.HonBam.auth.CustomOAuth2User;
+import com.example.HonBam.auth.dto.request.ProviderProfile;
 import com.example.HonBam.upload.entity.Media;
 import com.example.HonBam.upload.entity.MediaPurpose;
 import com.example.HonBam.upload.repository.MediaRepository;

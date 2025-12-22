@@ -1,4 +1,4 @@
-package com.example.HonBam.userapi.dto.response;
+package com.example.HonBam.auth.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

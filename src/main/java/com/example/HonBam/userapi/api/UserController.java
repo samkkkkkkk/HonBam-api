@@ -1,26 +1,14 @@
 package com.example.HonBam.userapi.api;
 
-import com.example.HonBam.auth.TokenProvider;
 import com.example.HonBam.auth.TokenUserInfo;
-import com.example.HonBam.auth.entity.RefreshToken;
-import com.example.HonBam.auth.repository.RefreshTokenRepository;
-import com.example.HonBam.config.AuthProperties;
 import com.example.HonBam.exception.NoRegisteredArgumentsException;
-import com.example.HonBam.userapi.dto.request.LoginRequestDTO;
 import com.example.HonBam.userapi.dto.request.UserRequestSignUpDTO;
-import com.example.HonBam.userapi.dto.response.LoginResponseDTO;
-import com.example.HonBam.userapi.dto.response.RefreshResponseDTO;
+import com.example.HonBam.auth.dto.response.LoginResponseDTO;
 import com.example.HonBam.userapi.dto.response.UserInfoResponseDTO;
 import com.example.HonBam.userapi.dto.response.UserSignUpResponseDTO;
-import com.example.HonBam.userapi.entity.User;
-import com.example.HonBam.userapi.repository.UserRepository;
-import com.example.HonBam.userapi.service.SocialLogoutService;
 import com.example.HonBam.userapi.service.UserService;
-import com.example.HonBam.util.CookieUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,26 +16,15 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
 @Slf4j
 @RequiredArgsConstructor
-@RequestMapping("/api/auth")
+@RequestMapping("/api/users")
 public class UserController {
 
     private final UserService userService;
-    private final TokenProvider tokenProvider;
-    private final AuthProperties authProperties;
-    private final CookieUtil cookieUtil;
-    private final SocialLogoutService socialLogoutService;
-    private final RefreshTokenRepository refreshTokenRepository;
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final UserRepository userRepository;
 
     // 이메일 중복 체크
     @GetMapping("/check")
@@ -80,42 +57,13 @@ public class UserController {
         }
     }
 
-    // 로그인
-    @PostMapping("/login")
-    public ResponseEntity<?> signIn(@Validated @RequestBody LoginRequestDTO dto) {
-        User user = userService.authenticate(dto);
-
-        String access = tokenProvider.createAccessToken(user);
-        String refresh = tokenProvider.createRefreshToken(user);
-        String refreshHash = tokenProvider.hashRefreshToken(refresh);
-
-        // DB 저장
-        RefreshToken refreshToken = RefreshToken.builder()
-                .userId(user.getId())
-                .tokenHash(refreshHash)
-                .revoked(false)
-                .expiredAt(LocalDateTime.now().plusDays(authProperties.getToken().getRefreshExpireDays()))
-                .deviceInfo("local-login")
-                .build();
-        refreshTokenRepository.save(refreshToken);
-
-        // Redis 저장
-        redisTemplate.opsForValue()
-                .set("refresh:" + refreshHash, user.getId(), authProperties.getToken().getRefreshExpireDuration());
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookieUtil.createAccessCookie(access).toString())
-                .header(HttpHeaders.SET_COOKIE, cookieUtil.createRefreshCookie(refresh).toString())
-                .body(new LoginResponseDTO(user));
-    }
-
     // 외원 등급 승급
     @PutMapping("/paypromote")
     @PreAuthorize("hasRole('ROLE_COMMON')")
     public ResponseEntity<?> paypromote(@AuthenticationPrincipal TokenUserInfo userInfo) {
         log.info("/api/auth/paypromote PUT!");
         try {
-            LoginResponseDTO responseDTO = userService.promoteToPayPremium(userInfo);
+            LoginResponseDTO responseDTO = userService.promoteToPayPremium(userInfo.getUserId());
             return ResponseEntity.ok().body(responseDTO);
         } catch (NoRegisteredArgumentsException | IllegalArgumentException e) {
             e.printStackTrace();
@@ -151,42 +99,6 @@ public class UserController {
     }
 
 
-
-    // 로그인 유효 검사
-    @GetMapping("/verify")
-    public ResponseEntity<?> verify(@AuthenticationPrincipal TokenUserInfo userInfo) {
-        if (userInfo == null) {
-            return ResponseEntity.status(401).body(Map.of("message", "UNAUTHORIZED"));
-        }
-        User user = userRepository.findById(userInfo.getUserId()).orElseThrow();
-        UserInfoResponseDTO dto = new UserInfoResponseDTO(user);
-        return ResponseEntity.ok(dto);
-    }
-
-    // 카카오 로그인 요청
-    @GetMapping("/kakaoLogin")
-    public ResponseEntity<?> kakaoLogin(String code) {
-        LoginResponseDTO responseDTO = userService.kakaoService(code);
-        return ResponseEntity.ok().body(responseDTO);
-    }
-
-    // 로그아웃 요청
-    @PostMapping("/logout")
-    public ResponseEntity<?> logout(
-            @AuthenticationPrincipal TokenUserInfo userInfo,
-            HttpServletResponse response) {
-        log.info("로그아웃 요청이 들어옴");
-
-        // Refresh Token 전부 폐기
-        socialLogoutService.invalidateUserTokens(userInfo.getUserId());
-
-        // 쿠기 제거
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteAccessCookie().toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtil.deleteRefreshCookie().toString());
-
-        return ResponseEntity.ok(Map.of("success", true));
-    }
-
     // 회원 탈퇴 요청
     @DeleteMapping("/delete")
     public ResponseEntity<?> deleteUser(@AuthenticationPrincipal TokenUserInfo userInfo) {
@@ -204,34 +116,9 @@ public class UserController {
     // 유저 정보 요청
     @GetMapping("/userinfo")
     public ResponseEntity<?> userInfo(@AuthenticationPrincipal TokenUserInfo userInfo) {
-        log.info("userinfo 요청!");
-        UserInfoResponseDTO responseDto = userService.getUserInfo(userInfo);
+        UserInfoResponseDTO responseDto = userService.getUserInfo(userInfo.getUserId());
         return ResponseEntity.ok().body(responseDto);
     }
 
-    // refresh token 재발급 요청
-    @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(HttpServletRequest req) {
 
-        String refresh = extractCookie(req, "refresh_token");
-        if (refresh == null) {
-            return ResponseEntity.status(401).body("NOT_REFRESH_TOKEN");
-        }
-
-        RefreshResponseDTO dto = userService.refreshToken(refresh);
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE,
-                        cookieUtil.createAccessCookie(dto.getAccessToken()).toString())
-                .header(HttpHeaders.SET_COOKIE,
-                        cookieUtil.createRefreshCookie(dto.getRefreshToken()).toString())
-                .build();
-    }
-
-    private String extractCookie(HttpServletRequest req, String name) {
-        Cookie[] cookies = req.getCookies();
-        if (cookies == null) return null;
-        for (Cookie c : cookies) if (name.equals(c.getName())) return c.getValue();
-        return null;
-    }
 }

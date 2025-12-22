@@ -1,6 +1,6 @@
 package com.example.HonBam.config;
 
-import com.example.HonBam.auth.CustomOAuth2UserService;
+import com.example.HonBam.auth.service.CustomOAuth2UserService;
 import com.example.HonBam.auth.OAuth2FailureHandler;
 import com.example.HonBam.auth.OAuth2SuccessHandler;
 import com.example.HonBam.filter.JwtAuthFilter;

@@ -59,19 +59,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setSessionCookieNeeded(true);
     }
 
-//    @Override
-//    public void configureMessageBroker(MessageBrokerRegistry registry) {
-//        registry.enableStompBrokerRelay("/topic", "/queue", "/exchange")
-//                .setRelayHost(relayHost)
-//                .setRelayPort(relayPort)
-//                .setClientLogin(clientLogin)
-//                .setClientPasscode(clientPasscode)
-//                .setVirtualHost(virtualHost)
-//                .setSystemLogin("guest")
-//                .setSystemPasscode("guest");
-//
-//        registry.setApplicationDestinationPrefixes("/app");
-//    }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {

@@ -1,4 +1,4 @@
-package com.example.HonBam.userapi.dto.response;
+package com.example.HonBam.auth.dto.response;
 
 import com.example.HonBam.userapi.entity.User;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 
 @Setter @Getter
 @ToString
-public class GoogleUserDTO {
+public class KakaoUserDTO {
 
     private long id;
 

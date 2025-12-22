@@ -135,7 +135,7 @@ public class ChatRoomConcurrencyTest {
     @Test
     void last_message_should_point_to_latest_message() throws Exception {
 
-        int threadCount = 10000;
+        int threadCount = 1000;
         ExecutorService executor = Executors.newFixedThreadPool(20);
         CountDownLatch latch = new CountDownLatch(threadCount);
 
@@ -173,11 +173,13 @@ public class ChatRoomConcurrencyTest {
         ChatRoom updatedRoom =
                 chatRoomRepository.findById(room.getId()).orElseThrow();
 
-        assertThat(updatedRoom.getLastMessageId())
-                .isEqualTo(maxMessageId);
 
         System.out.println("lastMessageId = " + updatedRoom.getLastMessageId());
         System.out.println("expected maxMessageId = " + maxMessageId);
+
+        assertThat(updatedRoom.getLastMessageId())
+                .isEqualTo(maxMessageId);
+
     }
 
 

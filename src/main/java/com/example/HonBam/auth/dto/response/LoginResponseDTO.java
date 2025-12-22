@@ -1,4 +1,4 @@
-package com.example.HonBam.userapi.dto.response;
+package com.example.HonBam.auth.dto.response;
 
 import com.example.HonBam.userapi.entity.User;
 import com.fasterxml.jackson.annotation.JsonFormat;

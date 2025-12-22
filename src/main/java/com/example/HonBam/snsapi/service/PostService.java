@@ -187,6 +187,7 @@ public class PostService {
             throw new CustomUnauthorizedException("본인의 게시글만 수정할 수 있습니다.");
         }
 
+
         post.updateContent(requestDTO.getContent());
         post.clearPostMedias();
 
@@ -195,6 +196,10 @@ public class PostService {
             for (Long mediaId : requestDTO.getMediaIds()) {
                 Media media = mediaRepository.findById(mediaId)
                         .orElseThrow(() -> new IllegalArgumentException("Media not found: " + mediaId));
+
+                if (!media.getUploaderId().equals(userId)) {
+                    throw new CustomUnauthorizedException("본인의 미디어만 사용할 수 있습니다.");
+                }
 
                 post.addPostMedia(
                         PostMedia.builder()

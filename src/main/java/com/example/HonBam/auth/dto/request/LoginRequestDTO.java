@@ -1,4 +1,4 @@
-package com.example.HonBam.userapi.dto.request;
+package com.example.HonBam.auth.dto.request;
 
 import lombok.*;
 
