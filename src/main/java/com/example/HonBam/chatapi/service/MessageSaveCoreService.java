@@ -49,6 +49,8 @@ public class MessageSaveCoreService {
                     .message(savedMessage)
                     .media(savedMedia)
                     .build();
+
+            chatMediaRepository.save(chatMedia);
         }
         return savedMessage;
     }

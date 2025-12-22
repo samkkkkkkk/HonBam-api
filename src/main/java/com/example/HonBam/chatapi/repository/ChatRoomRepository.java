@@ -36,7 +36,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "SET c.lastMessage = :msg, " +
             "c.lastMessageId = :messageId," +
             "c.lastMessageTime = :time " +
-            "WHERE c.id = :roomId")
+            "WHERE c.id = :roomId " +
+           "AND (c.lastMessageId IS NULL OR c.lastMessageId < :messageId)")
     int updateLastMessage(@Param("roomId") Long roomId,
                           @Param("msg") String msg,
                           @Param("time") LocalDateTime time,

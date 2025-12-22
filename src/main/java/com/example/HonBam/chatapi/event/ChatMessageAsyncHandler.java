@@ -8,6 +8,7 @@ import com.example.HonBam.chatapi.entity.ChatRoomUser;
 import com.example.HonBam.chatapi.repository.ChatMediaRepository;
 import com.example.HonBam.chatapi.repository.ChatMessageRepository;
 import com.example.HonBam.chatapi.repository.ChatRoomUserRepository;
+import com.example.HonBam.chatapi.service.ChatRoomUpdateService;
 import com.example.HonBam.notification.event.ChatMessageCreateEvent;
 import com.example.HonBam.upload.service.PresignedUrlService;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +34,9 @@ public class ChatMessageAsyncHandler {
     private final ChatEventBroadcaster chatEventBroadcaster;
     private final ApplicationEventPublisher eventPublisher;
     private final PresignedUrlService presignedUrlService;
+    private final ChatRoomUpdateService chatRoomUpdateService;
 
-    @Async
+    @Async("chatTaskExecutor")
     @Transactional(readOnly = true)
     @TransactionalEventListener
     public void onChatMessageSaved(ChatMessageSavedEvent event) {
@@ -49,6 +51,16 @@ public class ChatMessageAsyncHandler {
             ChatMessage message = chatMessageRepository.findById(messageId)
                     .orElse(null);
             if (message == null) return;
+
+            // 채팅방 lastMessage 업데이트
+            String preview = makePreview(message);
+
+            chatRoomUpdateService.updateLastMessage(
+                    roomId,
+                    preview,
+                    message.getTimestamp(),
+                    message.getId()
+            );
 
             // 미디어 파일 조회
             List<ChatMedia> mediaList = chatMediaRepository.findByMessageId(messageId);
@@ -106,6 +118,22 @@ public class ChatMessageAsyncHandler {
             }
         } catch (Exception e) {
             log.error("Async ChatMessageSavedEvent 처리 실패. messageId={}", event.getMessageId(), e);
+        }
+    }
+
+    private String makePreview(ChatMessage message) {
+        switch (message.getMessageType()) {
+            case TEXT:
+            case SYSTEM:
+                return message.getContent();
+            case FILE:
+                return "[파일]";
+            case IMAGE:
+                return "[사진]";
+            case VIDEO:
+                return "[영상]";
+            default:
+                return "";
         }
     }
 }

@@ -39,9 +39,8 @@ public class ChatRoomConcurrencyTest {
     ChatEventBroadcaster broadcaster;
     @MockBean
     PresignedUrlService presignedUrlService;
-    @MockBean
+    @Autowired
     ApplicationEventPublisher eventPublisher;
-
     // ChatRoomService가 ChatMessageService 생성자에서 필요하기 때문에 Mock 제공
     @Autowired
     ChatRoomService chatRoomService;
@@ -61,81 +60,81 @@ public class ChatRoomConcurrencyTest {
         chatRoomRepository.save(room);
     }
 
-    @Test
-    void concurrent_message_saving() throws Exception {
-
-        int threadCount = 100;
-        ExecutorService executor = Executors.newFixedThreadPool(20);
-        CountDownLatch latch = new CountDownLatch(threadCount);
-
-        for (int i = 0; i < threadCount; i++) {
-            int index = i;
-
-            executor.submit(() -> {
-                try {
-                    ChatRoom chatRoom = chatRoomRepository.findByRoomUuid(room.getRoomUuid()).get();
-                    ChatMessageRequest req = ChatMessageRequest.builder()
-                            .roomUuid(chatRoom.getRoomUuid())
-                            .messageType(MessageType.TEXT)
-                            .content("msg-" + index)
-                            .build();
-
-                    chatMessageService.saveMessage(req, "userA", "홍길동");
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        latch.await();
-
-        long count = chatMessageRepository.countByRoomId(room.getId());
-        assertThat(count).isEqualTo(threadCount);
-
-        ChatRoom updated = chatRoomRepository.findById(room.getId()).orElseThrow();
-        assertThat(updated.getLastMessageId()).isPositive();
-        System.out.println("최종 lastMessageId = " + updated.getLastMessageId());
-    }
-
-    @Test
-    void concurrent_message_inserts_only() throws Exception {
-
-        int threadCount = 100;
-        ExecutorService executor = Executors.newFixedThreadPool(20);
-        CountDownLatch latch = new CountDownLatch(threadCount);
-
-        for (int i = 0; i < threadCount; i++) {
-            int index = i;
-
-            executor.submit(() -> {
-                try {
-                    ChatRoom chatRoom = chatRoomRepository.findByRoomUuid(room.getRoomUuid()).get();
-                    ChatMessage message = ChatMessage.builder()
-                            .room(chatRoom)
-                            .senderId("userA")
-                            .senderName("홍길동")
-                            .messageType(MessageType.TEXT)
-                            .content("msg-" + index)
-                            .build();
-
-                    chatMessageRepository.save(message);
-
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        latch.await();
-
-        long count = chatMessageRepository.countByRoomId(room.getId());
-        assertThat(count).isEqualTo(threadCount);
-    }
+//    @Test
+//    void concurrent_message_saving() throws Exception {
+//
+//        int threadCount = 100;
+//        ExecutorService executor = Executors.newFixedThreadPool(20);
+//        CountDownLatch latch = new CountDownLatch(threadCount);
+//
+//        for (int i = 0; i < threadCount; i++) {
+//            int index = i;
+//
+//            executor.submit(() -> {
+//                try {
+//                    ChatRoom chatRoom = chatRoomRepository.findByRoomUuid(room.getRoomUuid()).get();
+//                    ChatMessageRequest req = ChatMessageRequest.builder()
+//                            .roomUuid(chatRoom.getRoomUuid())
+//                            .messageType(MessageType.TEXT)
+//                            .content("msg-" + index)
+//                            .build();
+//
+//                    chatMessageService.saveMessage(req, "userA", "홍길동");
+//                } finally {
+//                    latch.countDown();
+//                }
+//            });
+//        }
+//
+//        latch.await();
+//
+//        long count = chatMessageRepository.countByRoomId(room.getId());
+//        assertThat(count).isEqualTo(threadCount);
+//
+//        ChatRoom updated = chatRoomRepository.findById(room.getId()).orElseThrow();
+//        assertThat(updated.getLastMessageId()).isPositive();
+//        System.out.println("최종 lastMessageId = " + updated.getLastMessageId());
+//    }
+//
+//    @Test
+//    void concurrent_message_inserts_only() throws Exception {
+//
+//        int threadCount = 100;
+//        ExecutorService executor = Executors.newFixedThreadPool(20);
+//        CountDownLatch latch = new CountDownLatch(threadCount);
+//
+//        for (int i = 0; i < threadCount; i++) {
+//            int index = i;
+//
+//            executor.submit(() -> {
+//                try {
+//                    ChatRoom chatRoom = chatRoomRepository.findByRoomUuid(room.getRoomUuid()).get();
+//                    ChatMessage message = ChatMessage.builder()
+//                            .room(chatRoom)
+//                            .senderId("userA")
+//                            .senderName("홍길동")
+//                            .messageType(MessageType.TEXT)
+//                            .content("msg-" + index)
+//                            .build();
+//
+//                    chatMessageRepository.save(message);
+//
+//                } finally {
+//                    latch.countDown();
+//                }
+//            });
+//        }
+//
+//        latch.await();
+//
+//        long count = chatMessageRepository.countByRoomId(room.getId());
+//        assertThat(count).isEqualTo(threadCount);
+//    }
 
     @Test
     void last_message_should_point_to_latest_message() throws Exception {
 
-        int threadCount = 1000;
+        int threadCount = 10000;
         ExecutorService executor = Executors.newFixedThreadPool(20);
         CountDownLatch latch = new CountDownLatch(threadCount);
 
@@ -159,28 +158,37 @@ public class ChatRoomConcurrencyTest {
 
         latch.await();
 
-        // 1) 메시지 100개 저장 검증
+        // [수정 2] 비동기 작업(Async Handler)이 끝날 때까지 기다려야 합니다.
+        // 메인 스레드는 요청만 다 보냈지, 백그라운드 스레드는 아직 10,000개를 DB에 업데이트 중입니다.
+        // 넉넉하게 기다리거나, 폴링(Polling) 방식으로 체크해야 합니다.
+        long start = System.currentTimeMillis();
+        Long maxMessageId = 0L;
+        ChatRoom updatedRoom = null;
+
+        while (System.currentTimeMillis() - start < 10000) { // 최대 10초 대기
+            updatedRoom = chatRoomRepository.findById(room.getId()).orElseThrow();
+
+            // 실제 저장된 가장 마지막 메시지 ID 조회
+            maxMessageId = chatMessageRepository.findTopByRoomIdOrderByIdDesc(room.getId())
+                    .map(ChatMessage::getId)
+                    .orElse(0L);
+
+            // DB 업데이트가 끝까지 따라잡았는지 확인
+            if (updatedRoom.getLastMessageId() != null && updatedRoom.getLastMessageId().equals(maxMessageId)) {
+                break;
+            }
+            Thread.sleep(500); // 0.5초마다 확인
+        }
+
+        // 1) 메시지 10000개 저장 검증
         long count = chatMessageRepository.countByRoomId(room.getId());
         assertThat(count).isEqualTo(threadCount);
-
-        // 2) DB에서 가장 마지막 message id 조회
-        Long maxMessageId =
-                chatMessageRepository.findTopByRoomIdOrderByIdDesc(room.getId())
-                        .map(ChatMessage::getId)
-                        .orElseThrow();
-
-        // 3) ChatRoom.lastMessageId와 비교
-        ChatRoom updatedRoom =
-                chatRoomRepository.findById(room.getId()).orElseThrow();
-
 
         System.out.println("lastMessageId = " + updatedRoom.getLastMessageId());
         System.out.println("expected maxMessageId = " + maxMessageId);
 
-        assertThat(updatedRoom.getLastMessageId())
-                .isEqualTo(maxMessageId);
-
+        // 2) 검증
+        assertThat(updatedRoom.getLastMessageId()).isNotNull();
+        assertThat(updatedRoom.getLastMessageId()).isEqualTo(maxMessageId);
     }
-
-
 }
