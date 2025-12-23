@@ -1,6 +1,7 @@
 package com.example.HonBam.snsapi.api;
 
 import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.snsapi.dto.response.LikeStatusResponse;
 import com.example.HonBam.snsapi.service.LikeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +25,7 @@ public class LikeController {
         likeService.addLike(userInfo.getUserId(), postId);
         int likeCount = likeService.getLikeCount(postId);
 
-        return ResponseEntity.ok(Map.of(
-                "liked", true,
-                "likeCount", likeCount
-        ));
+        return ResponseEntity.ok(new LikeStatusResponse(true, likeCount));
     }
 
     // 좋아요 취소
@@ -39,10 +37,7 @@ public class LikeController {
         likeService.removeLike(userInfo.getUserId(), postId);
         int likeCount = likeService.getLikeCount(postId);
 
-        return ResponseEntity.ok(Map.of(
-                "liked", false,
-                "likeCount", likeCount
-        ));
+        return ResponseEntity.ok(new LikeStatusResponse(true, likeCount));
     }
 
     // 좋아요 여부 조회

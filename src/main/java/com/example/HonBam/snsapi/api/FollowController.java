@@ -2,6 +2,7 @@ package com.example.HonBam.snsapi.api;
 
 import com.example.HonBam.auth.TokenUserInfo;
 import com.example.HonBam.exception.UserNotFoundException;
+import com.example.HonBam.snsapi.dto.response.FollowStatusResponse;
 import com.example.HonBam.snsapi.dto.response.UserFollowResponseDTO;
 import com.example.HonBam.snsapi.service.FollowService;
 import com.example.HonBam.userapi.entity.User;
@@ -44,10 +45,7 @@ public class FollowController {
         followService.follow(userInfo.getUserId(), targetId);
         long followerCount = followService.getFollowerCount(targetId);
 
-        return ResponseEntity.ok(Map.of(
-                "following", true,
-                "followerCount", followerCount
-        ));
+        return ResponseEntity.ok(new FollowStatusResponse(true, followerCount));
     }
 
     // 팔로우 취소
@@ -59,10 +57,8 @@ public class FollowController {
         followService.unFollow(userInfo.getUserId(), targetId);
         long followerCount = followService.getFollowerCount(targetId);
 
-        return ResponseEntity.ok(Map.of(
-                "following", false,
-                "followerCount", followerCount
-        ));
+        return ResponseEntity.ok(new FollowStatusResponse(false, followerCount));
+
     }
 
     // 팔로우 여부 확인
