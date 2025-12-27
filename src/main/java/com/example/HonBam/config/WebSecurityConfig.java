@@ -76,9 +76,9 @@ public class WebSecurityConfig {
                         .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // 회원가입/로그인/중복검사/refresh
-                        .antMatchers(HttpMethod.POST, "/api/auth").permitAll() // 회원가입
+                        .antMatchers(HttpMethod.POST, "/api/users").permitAll() // 회원가입
                         .antMatchers("/api/auth/login").permitAll()
-                        .antMatchers("/api/auth/check").permitAll()
+                        .antMatchers("/api/users/check").permitAll()
                         .antMatchers("/api/auth/refresh").permitAll()
                         .antMatchers("/oauth2/**").permitAll()
 
@@ -112,13 +112,13 @@ public class WebSecurityConfig {
                         .antMatchers("/ws-chat/**", "/chat/**", "/redis/**", "/chatRooms/**", "/topic/**", "/app/**").permitAll()
 
                         // auth 추가 기능
-                        .antMatchers("/api/auth/paypromote").authenticated()
-                        .antMatchers("/api/auth/profile-image").authenticated()
-                        .antMatchers("/api/auth/profile-s3").authenticated()
-                        .antMatchers("/api/auth/userinfo").authenticated()
-                        .antMatchers("/api/auth/verify").authenticated()
+                        .antMatchers("/api/users/paypromote").authenticated()
+                        .antMatchers("/api/users/profile-image").authenticated()
+                        .antMatchers("/api/users/profile-s3").authenticated()
+                        .antMatchers("/api/users/userinfo").authenticated()
+                        .antMatchers("/api/users/verify").authenticated()
                         .antMatchers("/api/auth/logout").authenticated()
-                        .antMatchers("/api/auth/delete").authenticated()
+                        .antMatchers("/api/users/delete").authenticated()
 
                         // toss 결제 시스템
                         .antMatchers("/api/tosspay/info").authenticated()
