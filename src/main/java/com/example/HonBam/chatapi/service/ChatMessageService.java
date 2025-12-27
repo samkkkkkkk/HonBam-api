@@ -43,52 +43,10 @@ public class ChatMessageService {
 
         // 메시지 저장
         ChatMessage saved = messageSaveCoreService.saveCore(request, senderId, senderName);
-//        ChatRoom room = saved.getRoom();
-
-//        // ChatRoom lastMessage 업데이트
-//        String preview = makePreview(request, saved);
-//        chatRoomUpdateService.updateLastMessage(room.getId(),
-//                preview,
-//                saved.getTimestamp(),
-//                saved.getId()
-//        );
 
         // 비동기 처리 이벤트 발생
         eventPublisher.publishEvent(ChatMessageSavedEvent.of(saved));
     }
-
-//    private String makePreview(ChatMessageRequest request, ChatMessage saved) {
-//        switch (saved.getMessageType()) {
-//            case TEXT:
-//            case SYSTEM:
-//                return request.getContent();
-//            case FILE:
-//                return "[파일]";
-//            case IMAGE:
-//                return "[사진]";
-//            case VIDEO:
-//                return "[영상]";
-//            default:
-//                return "";
-//        }
-//    }
-
-//    // JPA Pageable 방식
-//    public List<ChatMessageResponseDTO> getMessagePageable(Long roomId, int page, int size) {
-//        Pageable pageable = PageRequest.of(page, size);
-//        Page<ChatMessage> messagePage =
-//                chatMessageRepository.findByRoomIdOrderByTimestampDesc(roomId, pageable);
-//
-//        return mapMessageWithUnreadCount(messagePage.getContent(), roomId);
-//    }
-
-//    // Native Query 방식
-//    public List<ChatMessageResponseDTO> getMessageNative(Long roomId, int page, int size) {
-//        int offset = (page - 1) * size;
-//        List<ChatMessage> messages =
-//                chatMessageRepository.findMessageWithPaging(roomId, size, offset);
-//        return mapMessageWithUnreadCount(messages, roomId);
-//    }
 
     // Cursor Before 방식
     @Transactional

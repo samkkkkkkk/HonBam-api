@@ -14,7 +14,7 @@ public class ChatRoomUpdateService {
 
     private final ChatRoomRepository chatRoomRepository;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void updateLastMessage(Long roomId, String preview, LocalDateTime timestamp, Long messageId) {
         chatRoomRepository.updateLastMessage(roomId, preview, timestamp, messageId);
     }

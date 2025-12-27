@@ -17,6 +17,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
@@ -37,8 +38,7 @@ public class ChatMessageAsyncHandler {
     private final ChatRoomUpdateService chatRoomUpdateService;
 
     @Async("chatTaskExecutor")
-    @Transactional(readOnly = true)
-    @TransactionalEventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onChatMessageSaved(ChatMessageSavedEvent event) {
 
         try {
