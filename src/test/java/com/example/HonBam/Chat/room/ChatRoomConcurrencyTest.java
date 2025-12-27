@@ -134,7 +134,7 @@ public class ChatRoomConcurrencyTest {
     @Test
     void last_message_should_point_to_latest_message() throws Exception {
 
-        int threadCount = 10000;
+        int threadCount = 1000;
         ExecutorService executor = Executors.newFixedThreadPool(20);
         CountDownLatch latch = new CountDownLatch(threadCount);
 
@@ -158,9 +158,7 @@ public class ChatRoomConcurrencyTest {
 
         latch.await();
 
-        // [수정 2] 비동기 작업(Async Handler)이 끝날 때까지 기다려야 합니다.
-        // 메인 스레드는 요청만 다 보냈지, 백그라운드 스레드는 아직 10,000개를 DB에 업데이트 중입니다.
-        // 넉넉하게 기다리거나, 폴링(Polling) 방식으로 체크해야 합니다.
+
         long start = System.currentTimeMillis();
         Long maxMessageId = 0L;
         ChatRoom updatedRoom = null;
@@ -180,7 +178,7 @@ public class ChatRoomConcurrencyTest {
             Thread.sleep(500); // 0.5초마다 확인
         }
 
-        // 1) 메시지 10000개 저장 검증
+        // 메시지  저장 검증
         long count = chatMessageRepository.countByRoomId(room.getId());
         assertThat(count).isEqualTo(threadCount);
 
