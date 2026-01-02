@@ -21,7 +21,7 @@ public class UploadController {
     private final PresignedUrlService presignedUrlService;
     private final UploadService uploadService;
 
-    @GetMapping("/presigned/profile")
+    @PostMapping("/presigned/profile")
     public ResponseEntity<UploadResponseDTO> generateProfilePresignedUrl(
             @RequestBody JoinUploadRequest request
     ) {

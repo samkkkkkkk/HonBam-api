@@ -88,7 +88,7 @@ public class WebSecurityConfig {
                         .antMatchers(HttpMethod.GET,"/api/freeboard/**").permitAll()
                         .antMatchers(HttpMethod.GET,"/api/posts/**").permitAll()
                         .antMatchers(HttpMethod.GET,"/api/sns/feed/**").permitAll()
-                        .antMatchers(HttpMethod.GET,"/api/upload/presigned/profile").permitAll()
+                        .antMatchers(HttpMethod.POST,"/api/upload/presigned/profile").permitAll()
 
                         // swagger
                         .antMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/swagger-resources", "/webjars/**").permitAll()
