@@ -83,4 +83,10 @@ public class AuthController {
                 .body(Map.of("success", true));
     }
 
+    // 로그인 유효 검사
+    @GetMapping("/verify")
+    public ResponseEntity<?> verify(@AuthenticationPrincipal TokenUserInfo userInfo) {
+        Boolean authenticated = userInfo != null;
+        return ResponseEntity.ok().body(Map.of("authenticated", authenticated));
+    }
 }
