@@ -20,10 +20,6 @@ public class ChatMessageResponseDTO {
     private MessageType messageType;
     private String content;
 
-    private String fileUrl;
-    private String fileName;
-    private Long fileSize;
-
     @Builder.Default
     private List<FileInfoDTO> files = Collections.emptyList();
 
@@ -39,5 +35,4 @@ public class ChatMessageResponseDTO {
         private String contentType;
         private Long fileSize;
     }
-
 }
