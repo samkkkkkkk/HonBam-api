@@ -70,7 +70,7 @@ public class UserService {
                     .build();
 
             // media 생성, DB에 저장
-            Media savedMedia = uploadService.completeUpload(user.getId(), uploadRequest);
+            Media savedMedia = uploadService.completeOne(user.getId(), uploadRequest);
 
             // UserProfileMedia 연결 및 저장
             UserProfileMedia userProfileMedia = UserProfileMedia.builder()

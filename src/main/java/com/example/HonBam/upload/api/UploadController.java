@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 @RestController
@@ -42,11 +43,12 @@ public class UploadController {
     }
 
     @PostMapping("/complete")
-    public ResponseEntity<MediaResponseDTO> completeUpload(
+    public ResponseEntity<List<MediaResponseDTO>> completeUpload(
             @AuthenticationPrincipal TokenUserInfo userInfo,
-            @RequestBody UploadCompleteRequest request
+            @RequestBody List<UploadCompleteRequest> requests
     ) {
-        Media media = uploadService.completeUpload(userInfo.getUserId(), request);
-        return ResponseEntity.ok(MediaResponseDTO.from(media));
+        List<Media> medias = uploadService.completeUpload(userInfo.getUserId(), requests);
+        return ResponseEntity.ok(medias.stream().map(MediaResponseDTO::from).collect(Collectors.toList()));
     }
+
 }

@@ -12,6 +12,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class UploadService {
@@ -24,8 +27,15 @@ public class UploadService {
     private String bucket;
 
     @Transactional
-    public Media completeUpload(String uploaderId, UploadCompleteRequest req) {
+    public Media completeOne(String uploaderId, UploadCompleteRequest req) {
         return createMedia(uploaderId, req.getFileKey(), req.getPurpose());
+    }
+
+    @Transactional
+    public List<Media> completeUpload(String uploaderId, List<UploadCompleteRequest> req) {
+        return req.stream()
+                .map(r -> createMedia(uploaderId, r.getFileKey(), r.getPurpose()))
+                .collect(Collectors.toList());
     }
 
     @Transactional
