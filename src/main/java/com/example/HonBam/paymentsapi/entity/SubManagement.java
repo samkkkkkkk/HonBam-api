@@ -21,10 +21,12 @@ public class SubManagement {
     @Column(name = "sub_management_id")
     private Long subManagementId;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "paid_id")
     private PaidInfo paidInfo;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sub_id")
     private Subscription subscription;

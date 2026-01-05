@@ -12,11 +12,15 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       TZ: Asia/Seoul
       LANG: C.UTF-8
-      command: >
-        --character-set-server=utf8mb4
-        --collation-server=utf8mb4_general_ci
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+      --secure-file-priv=/var/lib/mysql-files
+      --local-infile=1
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./init:/docker-entrypoint-initdb.d
+      - ./seed:/var/lib/mysql-files
     networks:
       - app-network
     healthcheck:
@@ -51,37 +55,38 @@ services:
     networks:
       - app-network
 
-  springboot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - ~/.gradle:/home/gradle/.gradle
-      - ./honbam_upload:/honbam_upload # 호스트의 폴더를 컨테이너 /upload로 연결
-    container_name: springboot
-    ports:
-      - "8181:8181"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      rabbitmq:
-        condition: service_started
-    networks:
-      - app-network
-    environment:
-      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - PAYMENT_TOSS_TEST_CLIENT_API_KEY=${PAYMENT_TOSS_TEST_CLIENT_API_KEY}
-      - PAYMENT_TOSS_TEST_CLIENT_API_KEY_SECRET=${PAYMENT_TOSS_TEST_CLIENT_API_KEY_SECRET}
-#      - PAYMENT_TOSS_SUCCESS_URL=${PAYMENT_TOSS_SUCCESS_URL}
-#      - PAYMENT_TOSS_FAIL_URL=${PAYMENT_TOSS_FAIL_URL}
-      - KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
-      - KAKAO_REDIRECT_URL=${KAKAO_REDIRECT_URL}
-      - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
+
+#  springboot:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    volumes:
+#      - ~/.gradle:/home/gradle/.gradle
+#      - ./honbam_upload:/honbam_upload # 호스트의 폴더를 컨테이너 /upload로 연결
+#    container_name: springboot
+#    ports:
+#      - "8181:8181"
+#    depends_on:
+#      mysql:
+#        condition: service_healthy
+#      redis:
+#        condition: service_started
+#      rabbitmq:
+#        condition: service_started
+#    networks:
+#      - app-network
+#    environment:
+#      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+#      - MYSQL_USER=${MYSQL_USER}
+#      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+#      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+#      - PAYMENT_TOSS_TEST_CLIENT_API_KEY=${PAYMENT_TOSS_TEST_CLIENT_API_KEY}
+#      - PAYMENT_TOSS_TEST_CLIENT_API_KEY_SECRET=${PAYMENT_TOSS_TEST_CLIENT_API_KEY_SECRET}
+##      - PAYMENT_TOSS_SUCCESS_URL=${PAYMENT_TOSS_SUCCESS_URL}
+##      - PAYMENT_TOSS_FAIL_URL=${PAYMENT_TOSS_FAIL_URL}
+#      - KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
+#      - KAKAO_REDIRECT_URL=${KAKAO_REDIRECT_URL}
+#      - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
 
 
 volumes:

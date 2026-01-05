@@ -15,7 +15,7 @@ public class Recipe {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "data_id")
-    private int dataId;
+    private Long dataId;
 
     @Column(name = "cocktail_name")
     private String cocktailName;
@@ -24,9 +24,10 @@ public class Recipe {
     private String cocktailImg;
 
 
+    @Column(columnDefinition = "TEXT")
     private String recipe;
 
-    @Column(name = "recipe_detail")
+    @Column(name = "recipe_detail", columnDefinition = "LONGTEXT")
     private String recipeDetail;
 
 }

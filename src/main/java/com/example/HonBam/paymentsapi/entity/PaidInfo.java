@@ -50,6 +50,7 @@ public class PaidInfo {
     @Column(nullable = false)
     private String paymentStatus;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     User user;

@@ -1,10 +1,17 @@
 package com.example.HonBam.config;
 
+import com.example.HonBam.auth.service.CustomOAuth2UserService;
+import com.example.HonBam.auth.OAuth2FailureHandler;
+import com.example.HonBam.auth.OAuth2SuccessHandler;
 import com.example.HonBam.filter.JwtAuthFilter;
 import com.example.HonBam.filter.JwtExceptionFilter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -12,108 +19,146 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
+import javax.servlet.http.HttpServletResponse;
 import java.util.Arrays;
+import java.util.List;
 
-// @Configuration // 설정 클래스 용도로 사용하도록 스프링에 등록하는 아노테이션
-@EnableWebSecurity // 시큐리티 설정 파일로 사용할 클래스 선언.
+@Slf4j
+@Configuration
+@EnableWebSecurity
+@Profile("!test")
 @RequiredArgsConstructor
-// 자동 권한 검사를 수행하기 위한 설정
-@EnableGlobalMethodSecurity(prePostEnabled = true)
+@EnableGlobalMethodSecurity(prePostEnabled = true) // @PreAuthorize 활성화
 public class WebSecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final JwtExceptionFilter jwtExceptionFilter;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final CustomOAuth2UserService customOAuth2UserService;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // 시큐리티 설정
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-        // Security 모듈이 기본적으로 제공하는 보안 정책 해제.
         http
-                .cors().configurationSource(corsConfigurationSource())
-                .and()
-                .csrf().disable()
-                .httpBasic().disable()
-                // 세션인증을 사용하지 않겠다.
-                .sessionManagement()
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and()
-                // 어떤 요청에서 인증을 안 할 것인지, 언제 인증을 할 것인지 설정
-                .authorizeRequests()
-                .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // /api/auth/** 은 permit이지만, /promote는 검증이 필요하기 때문에 추가.(순서 조심!)
-                .antMatchers(HttpMethod.POST, "/api/auth/paypromote")
-                .authenticated()
-                .antMatchers("/api/auth/load-profile").authenticated()
-                .antMatchers("/api/recipe").permitAll()
-                .antMatchers("/api/tosspay/info").authenticated()
-                .antMatchers("/api/tosspay/confirm").authenticated()
-                .antMatchers("/api/tosspay/**").permitAll()
-                // '/api/auth'로 시작하는 요청과 '/'요청은 권한 검사 없이 허용하겠다.
-                .antMatchers("/", "/api/auth/**").permitAll()
-                .antMatchers("/api/freeboard").permitAll()
-                .antMatchers("/api/posts/**").permitAll()
-                .antMatchers("/ws-chat/**").permitAll()
-                .antMatchers("/chat/**").permitAll()
-                .antMatchers("/redis/**").permitAll()
-                .antMatchers("/chatRooms/**").permitAll()
-                .antMatchers("/topic/**").permitAll()
-                .antMatchers("/app/**").permitAll()
+                .cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
+                .httpBasic(b -> b.disable())
+                .formLogin(f -> f.disable()) // ← 기본 로그인폼 redirect 방지
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            // 인증 실패 시 401 반환
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"message\":\"UNAUTHORIZED\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            // 인가 실패 시 403 반환
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"message\":\"FORBIDDEN\"}");
+                        })
+                )
+
+                .authorizeRequests(auth -> auth
+                        .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // 회원가입/로그인/중복검사/refresh
+                        .antMatchers(HttpMethod.POST, "/api/users").permitAll() // 회원가입
+                        .antMatchers("/api/auth/login").permitAll()
+                        .antMatchers("/api/users/check").permitAll()
+                        .antMatchers("/api/auth/refresh").permitAll()
+                        .antMatchers("/oauth2/**").permitAll()
+
+                        // 공용 GET(조회)
+                        .antMatchers(HttpMethod.GET,"/uploads/**").permitAll()
+                        .antMatchers(HttpMethod.GET,"/api/recipe/**").permitAll()
+                        .antMatchers(HttpMethod.GET,"/api/freeboard/**").permitAll()
+                        .antMatchers(HttpMethod.GET,"/api/posts/**").permitAll()
+                        .antMatchers(HttpMethod.GET,"/api/sns/feed/**").permitAll()
+                        .antMatchers(HttpMethod.POST,"/api/upload/presigned/profile").permitAll()
+
+                        // swagger
+                        .antMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/swagger-resources", "/webjars/**").permitAll()
+
+                        // upload 관련 조회를 제외한 요청 인증
+                        .antMatchers("/api/upload/**").authenticated()
+
+                        // posts - 조회만 공개
+                        .antMatchers( "/api/posts/**").authenticated()
+
+                        // freeboard - 조회만 공개
+                        .antMatchers("/api/freeboard/**").authenticated()
+
+                        // sns - 전체 보호
+                        .antMatchers("/api/sns/**").authenticated()
+
+                        // 채팅 API
+                        .antMatchers("/api/chat/**").authenticated()
+
+                        // 웹소켓 handshake 도메인 인증
+                        .antMatchers("/ws-chat/**", "/chat/**", "/redis/**", "/chatRooms/**", "/topic/**", "/app/**").permitAll()
+
+                        // auth 추가 기능
+                        .antMatchers("/api/users/paypromote").authenticated()
+                        .antMatchers("/api/users/profile-image").authenticated()
+                        .antMatchers("/api/users/profile-s3").authenticated()
+                        .antMatchers("/api/users/userinfo").authenticated()
+                        .antMatchers("/api/users/verify").authenticated()
+                        .antMatchers("/api/auth/logout").authenticated()
+                        .antMatchers("/api/users/delete").authenticated()
+
+                        // toss 결제 시스템
+                        .antMatchers("/api/tosspay/info").authenticated()
+                        .antMatchers("/api/tosspay/confirm").authenticated()
+
+                        // 루트 및 에러
+                        .antMatchers("/", "/error").permitAll()
+
+                        .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth -> oauth
+                        .userInfoEndpoint(u -> u.userService(customOAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
+                );
 
 
-                // '/api/HonBams'라는 요청이 POST로 들어오고, Role 값이 ADMIN인 경우 권한 검사 없이 허용하겠다.
-//                .antMatchers(HttpMethod.POST, "/api/HonBams").hasRole("ADMIN").permitAll()
-                // 위에서 따로 설정하지 않은 나머지 요청들은 권한 검사가 필요하다.
-                .anyRequest().authenticated();
-
-        // 토큰 인증 필터 연결
-        // jwtAuthFilter부터 연결 -> CORS 필터를 이후에 통과하도록 설정.
-        http.addFilterAfter(
-                jwtAuthFilter,
-                CorsFilter.class // import 주의: 스프링 꺼로
-        );
-
-        // Exception Filter를 Auth Filter 앞에 배치를 하겠다는 뜻.
-        // Filter 역할을 하는 클래스는 Spring Container 내부에 배치되는 것이 아니기 때문에
-        // Spring이 제공하는 예외 처리 등이 힘들 수 있다.
-        // 예외 처리만을 전담하는 필터를 생성해서, 예외가 발생하는 필터 앞단에 배치하면 예외가 먼저 배치된 필터로
-        // 넘어가서 처리가 가능하게 됩니다.
-
-        http.addFilterBefore(jwtExceptionFilter, JwtAuthFilter.class);
+        // ===== 필터 순서: 예외 → JWT → UsernamePasswordAuthenticationFilter 이전 =====
+        http.addFilterBefore(jwtExceptionFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
-        configuration.setAllowedMethods(Arrays.asList("HEAD","POST","GET","DELETE","PUT", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
+        CorsConfiguration conf = new CorsConfiguration();
+        conf.setAllowCredentials(true);
+        conf.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",
+                "http://127.0.0.1:*"
+        ));
+        conf.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        conf.setAllowedHeaders(Arrays.asList("Content-Type", "Authorization", "X-CSRF-Token"));
+        // 필요 시 클라이언트에 노출할 헤더
+        // conf.setExposedHeaders(List.of("Set-Cookie"));
+        conf.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", conf);
         return source;
     }
-
-
-
 }
-
-
-
-
-
-

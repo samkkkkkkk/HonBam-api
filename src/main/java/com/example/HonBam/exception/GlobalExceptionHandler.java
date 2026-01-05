@@ -1,5 +1,6 @@
 package com.example.HonBam.exception;
 
+import com.example.HonBam.exception.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -9,23 +10,66 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<String> handleUserNotFoundException(UserNotFoundException ex) {
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+    public ResponseEntity<ErrorResponse> handleUserNotFoundException(UserNotFoundException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("USER_NOT_FOUND", ex.getMessage()));
     }
 
     @ExceptionHandler(ChatRoomNotFoundException.class)
-    public ResponseEntity<String> handleChatRoomNotFoundException(ChatRoomNotFoundException ex) {
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+    public ResponseEntity<ErrorResponse> handleChatRoomNotFoundException(ChatRoomNotFoundException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("CHAT_ROOM_NOT_FOUND", ex.getMessage()));
     }
 
     @ExceptionHandler(ChatRoomAccessException.class)
-    public ResponseEntity<String> handleChatRoomAccessException(ChatRoomAccessException ex) {
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
+    public ResponseEntity<ErrorResponse> handleChatRoomAccessException(ChatRoomAccessException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse("CHAT_ROOM_ACCESS_DENIED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ChatRoomValidationException.class)
+    public ResponseEntity<ErrorResponse> handleChatRoomValidationException(ChatRoomValidationException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("CHAT_ROOM_NOT_VALIDATED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(MessageSendException.class)
+    public ResponseEntity<ErrorResponse> handleMessageSendException(MessageSendException ex) {
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("MESSAGE_SEND_ERROR", ex.getMessage()));
+    }
+
+    @ExceptionHandler(PostNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePostNotFoundException(PostNotFoundException exception) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("POST_NOT_FOUND", exception.getMessage()));
+    }
+
+    @ExceptionHandler(CommentNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleCommentNotFountException(CommentNotFoundException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("COMMENT_NOT_FOUND", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidateRefreshTokenException(InvalidRefreshTokenException e) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse("INVALID_REFRESH_TOKEN", e.getMessage()));
     }
 
     // 기타 RuntimeException 처리 (fallback)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 

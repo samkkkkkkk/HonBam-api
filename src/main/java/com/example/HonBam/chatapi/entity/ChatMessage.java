@@ -1,37 +1,41 @@
 package com.example.HonBam.chatapi.entity;
 
-import com.example.HonBam.userapi.entity.User;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Getter
-@Setter
+@Table(name = "chat_message")
+@Getter @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = "chatRoom")
-@EqualsAndHashCode
-@Builder
 public class ChatMessage {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long messageId;
+    private Long id;
 
-
-    private String message;
-
-    private LocalDateTime messageTime;
-
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "room_id", nullable = false)
-    private ChatRoom chatRoom;
+    private ChatRoom room;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User sender;
+    @Column(name = "sender_id", nullable = false, length = 36)
+    private String senderId;
 
+    @Column(name = "sender_name", nullable = false)
+    private String senderName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "message_type", nullable = false)
+    private MessageType messageType;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    @CreationTimestamp
+    @Column(name = "timestamp", updatable = false)
+    private LocalDateTime timestamp;
 }

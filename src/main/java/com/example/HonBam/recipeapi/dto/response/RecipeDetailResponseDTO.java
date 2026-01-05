@@ -11,7 +11,7 @@ import lombok.*;
 @Builder
 public class RecipeDetailResponseDTO {
 
-    private int dataId;
+    private Long dataId;
 
     private String cocktailName;
 

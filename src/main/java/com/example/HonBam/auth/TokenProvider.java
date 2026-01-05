@@ -1,105 +1,119 @@
 package com.example.HonBam.auth;
 
+import com.example.HonBam.config.AuthProperties;
 import com.example.HonBam.userapi.entity.Role;
-import com.example.HonBam.userapi.entity.UserPay;
 import com.example.HonBam.userapi.entity.User;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.script.DigestUtils;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
+@RequiredArgsConstructor
 @Slf4j
-// 역할: 토큰을 발급하고, 서명 위조를 검사하는 객체.
+// 역할: 토큰 발급 및 검증
 public class TokenProvider {
 
-    // 서명에 사용할 값 (512비트 이상의 랜덤 문자열)
-    // @Value: properties 형태의 파일의 내용을 읽어서 변수에 대입하는 아노테이션. (yml도 가능)
     @Value("${jwt.secret}")
-    private String SECRET_KEY;
+    private String secretKey;
 
-    // 토큰 생성 메서드
+    @Value("${jwt.base64Secret:true}")
+    private boolean base64Secret;
 
-    /**
-     * JSON Web Token을 생성하는 메서드
-     * @param userEntity - 토큰의 내용(클레임)에 포함될 유저 정보
-     * @return - 생성된 JSON을 암호화 한 토큰값
-     */
-    public String createToken(User userEntity) {
+    @Value("${jwt.issuer:HonBam}")
+    private String issuer;
 
-        // 토큰 만료시간 생성
-        Date expiry = Date.from(
-                Instant.now().plus(6, ChronoUnit.HOURS)
-        );
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = Base64.getDecoder().decode(secretKey);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
 
-        // 토큰 생성
-        /*
-            {
-                "iss": "서비스 이름(발급자)",
-                "exp": "2023-12-27(만료일자)",
-                "iat": "2023-11-27(발급일자)",
-                "email": "로그인한 사람 이메일",
-                "role": "Premium"
-                ...
-                == 서명
-            }
-         */
+    private final AuthProperties authProperties;
+
+    /** 액세스 토큰 발급 */
+    public String createAccessToken(User user) {
+
+        Instant now = Instant.now();
+        Instant expiry = now.plus(authProperties.getToken().getAccessExpireDuration());
+
+        log.info("createAccessToken - userId: {}", user.getId());
+        return buildJwtToken(
+                user.getId(),
+                user.getRole(),
+                "access",
+                expiry);
+    }
+
+    // Refresh Token 생성
+    public String createRefreshToken(User user) {
+        return UUID.randomUUID().toString() + UUID.randomUUID();
+    }
+
+    // Refresh Token 저장용 해쉬 생성
+    public String hashRefreshToken(String refreshToken) {
+        return DigestUtils.sha1DigestAsHex(refreshToken);
+    }
+
+    // JWT 생성 모듈
+    private String buildJwtToken(String userId, Role role, String typ, Instant expiry) {
 
         return Jwts.builder()
-//
-                .setSubject(userEntity.getId())   // sub 필드에 식별자
-                .claim("role", userEntity.getRole().toString())
-                .setIssuer("HonBam운영자") // iss: 발급자 정보
-                .setIssuedAt(new Date()) // iat: 발급 시간
-                .setExpiration(expiry) // exp: 만료 시간
-                .signWith(Keys.hmacShaKeyFor(SECRET_KEY.getBytes()), SignatureAlgorithm.HS512)
+                .setSubject(userId)               // sub = userId
+                .setIssuer(issuer)                // iss
+                .setIssuedAt(new Date())      // iat
+                .setExpiration(Date.from(expiry))            // exp
+                .addClaims(Map.of(
+                        "role", role.toString(),
+                        "typ", typ
+                ))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
 
-    /**
-     * 클라이언트가 전송한 토큰을 디코딩하여 토큰의 위조 여부를 확인
-     * 토큰을 json으로 파싱해서 클레임(토큰 정보)을 리턴
-     * @param token
-     * @return - 토큰 안에 있는 인증된 유저 정보를 반환
-     */
-    public TokenUserInfo validateAndGetTokenUserInfo(String token) {
-        Claims claims = Jwts.parserBuilder()
-                // 토큰 발급자의 발급 당시의 서명을 넣어줌
-                .setSigningKey(Keys.hmacShaKeyFor(SECRET_KEY.getBytes()))
-                //서명 위조 검사: 위조된 경우에는 예외가 발생합니다.
-                //위조가 되지 않은 경우 payload를 리턴
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+    // Access Token 검증
+    public TokenUserInfo validateAccessToken(String token) {
+        Claims claims = parse(token);
 
-        log.info("claims: {}", claims);
+        if (!"access".equals(claims.get("typ"))) {
+            throw new JwtException("INVALID_TOKEN_TYPE:ACCESS");
+        }
 
+        return toUserInfo(claims);
+    }
+
+    // JWT 내부 파싱(서명 + 만료 검출)
+    private Claims parse(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            throw new JwtException("TOKEN_EXPIRED");
+        } catch (JwtException e) {
+            throw new JwtException("INVALID_JWT");
+        }
+    }
+
+    // Claims -> TokenUserInfo 변환
+    private TokenUserInfo toUserInfo(Claims claims) {
         return TokenUserInfo.builder()
                 .userId(claims.getSubject())
                 .role(Role.valueOf(claims.get("role", String.class)))
                 .build();
     }
+
+
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

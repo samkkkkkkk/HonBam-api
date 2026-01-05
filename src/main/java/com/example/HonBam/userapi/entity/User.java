@@ -12,11 +12,10 @@ import java.util.List;
 
 @Getter
 @ToString
-@EqualsAndHashCode(of = "userId")
+@EqualsAndHashCode(of = "id")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-
 @Entity
 @Table(name = "hb_user")
 public class User {
@@ -30,7 +29,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    private String nickName;
+    private String nickname;
 
     private String phoneNumber;
 
@@ -43,27 +42,28 @@ public class User {
     private String address;
 
     @Setter
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
     private SubscriptionStatus subscriptionStatus = SubscriptionStatus.EXPIRED;
 
     @CreationTimestamp
     private LocalDateTime joinDate;
 
     @Enumerated(EnumType.STRING)
-//    @ColumnDefault("'COMMON'")
     @Builder.Default
     private Role role = Role.COMMON; // 유저 권한
 
-    @Enumerated(EnumType.STRING)
-    //    @ColumnDefault("'COMMON'")
-    @Builder.Default
-    @Setter
-    private UserPay userPay = UserPay.NORMAL;
-
-    private String profileImg; // 프로필 이미지 경로
-
     private String accessToken; // 카카오 로그인시 발급받는 accessToken을 저장 -> 로그아웃 때 필요
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private LoginProvider loginProvider = LoginProvider.LOCAL;
+
+
+    @ToString.Exclude
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<ChatRoomUser> chatRoomUsers = new ArrayList<>();
 
 
@@ -72,14 +72,13 @@ public class User {
         this.role = role;
     }
 
-    public void changeUserPay(UserPay userPay) {
-        this.userPay = userPay;
+    public void changeUserName(String name) {
+        this.userName = name;
     }
 
-    public void setAccessToken(String accessToken){
-        this.accessToken = accessToken;
+    public void changeLoginProvider(LoginProvider provider) {
+        this.loginProvider = provider;
     }
-
 }
 
 
