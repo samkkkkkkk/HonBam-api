@@ -38,6 +38,7 @@ public class ChatMessageAsyncHandler {
     private final ChatRoomUpdateService chatRoomUpdateService;
 
     @Async("chatTaskExecutor")
+    @Transactional
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onChatMessageSaved(ChatMessageSavedEvent event) {
 
@@ -63,7 +64,7 @@ public class ChatMessageAsyncHandler {
             );
 
             // 미디어 파일 조회
-            List<ChatMedia> mediaList = chatMediaRepository.findByMessageId(messageId);
+            List<ChatMedia> mediaList = chatMediaRepository.findByMessageIdWithMedia(messageId);
 
             List<ChatMessageResponseDTO.FileInfoDTO> fileDtos = mediaList.stream()
                     .map(cm -> ChatMessageResponseDTO.FileInfoDTO.builder()
