@@ -7,7 +7,6 @@ import com.example.HonBam.userapi.entity.User;
 import com.example.HonBam.util.CookieUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -113,7 +112,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         response.addHeader(HttpHeaders.SET_COOKIE,
                 cookieUtil.createAccessCookie( access).toString());
         response.addHeader(HttpHeaders.SET_COOKIE,
-                cookieUtil.createRefreshCookie(refreshHash).toString());
+                cookieUtil.createRefreshCookie(refresh).toString());
 
         // 7. 프론트로 리다이렉트
         response.sendRedirect(successRedirectUrl);

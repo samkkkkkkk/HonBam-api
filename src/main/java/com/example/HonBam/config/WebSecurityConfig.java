@@ -75,34 +75,35 @@ public class WebSecurityConfig {
                 .authorizeRequests(auth -> auth
                         .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 회원가입/로그인/중복검사/refresh
+                        // 공개: 회원가입/로그인/중복검사/refresh/소셜 로그인
                         .antMatchers(HttpMethod.POST, "/api/users").permitAll() // 회원가입
                         .antMatchers("/api/auth/login").permitAll()
                         .antMatchers("/api/users/check").permitAll()
                         .antMatchers("/api/auth/refresh").permitAll()
                         .antMatchers("/oauth2/**").permitAll()
 
-                        // 공용 GET(조회)
-                        .antMatchers(HttpMethod.GET,"/uploads/**").permitAll()
-                        .antMatchers(HttpMethod.GET,"/api/recipe/**").permitAll()
-                        .antMatchers(HttpMethod.GET,"/api/freeboard/**").permitAll()
-                        .antMatchers(HttpMethod.GET,"/api/posts/**").permitAll()
-                        .antMatchers(HttpMethod.GET,"/api/sns/feed/**").permitAll()
-                        .antMatchers(HttpMethod.POST,"/api/upload/presigned/profile").permitAll()
+                        // 공개 전용 GET (인증 불필요)
+                        .antMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        .antMatchers(HttpMethod.GET, "/api/recipe/**").permitAll()
 
                         // swagger
                         .antMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/swagger-resources", "/webjars/**").permitAll()
 
-                        // upload 관련 조회를 제외한 요청 인증
+                        // upload: 프로필 presigned 발급만 공개, 그 외 인증
+                        // (더 구체적인 permitAll 규칙을 broad authenticated 규칙보다 먼저 선언)
+                        .antMatchers(HttpMethod.POST, "/api/upload/presigned/profile").permitAll()
                         .antMatchers("/api/upload/**").authenticated()
 
-                        // posts - 조회만 공개
-                        .antMatchers( "/api/posts/**").authenticated()
+                        // posts: GET 조회만 공개, 그 외 인증
+                        .antMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
+                        .antMatchers("/api/posts/**").authenticated()
 
-                        // freeboard - 조회만 공개
+                        // freeboard: GET 조회만 공개, 그 외 인증
+                        .antMatchers(HttpMethod.GET, "/api/freeboard/**").permitAll()
                         .antMatchers("/api/freeboard/**").authenticated()
 
-                        // sns - 전체 보호
+                        // sns: feed GET만 공개, 그 외 전체 보호
+                        .antMatchers(HttpMethod.GET, "/api/sns/feed/**").permitAll()
                         .antMatchers("/api/sns/**").authenticated()
 
                         // 채팅 API

@@ -84,7 +84,7 @@ public class AuthService {
                 .userId(user.getId())
                 .tokenHash(refreshHash)
                 .revoked(false)
-                .expiredAt(LocalDateTime.now().plusDays(authProperties.getToken().getRefreshExpireDays()))
+                .expiredAt(LocalDateTime.now().plus(authProperties.getToken().getRefreshExpireDuration()))
                 .build();
 
         refreshTokenRepository.save(refreshToken);
@@ -305,9 +305,9 @@ public class AuthService {
             token.revoke();
         }
 
-        // DB RefreshToken 삭제
+        // DB RefreshToken revoke 플래그 반영 (물리 삭제가 아닌 폐기 처리)
         refreshTokenRepository.saveAll(tokens);
-        log.info("DB refresh tokens removed for userId: {}", userId);
+        log.info("DB refresh tokens revoked for userId: {}", userId);
     }
 
     public void loginFromKakao(String accessToken) {

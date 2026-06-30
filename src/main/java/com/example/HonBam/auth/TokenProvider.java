@@ -1,6 +1,8 @@
 package com.example.HonBam.auth;
 
 import com.example.HonBam.config.AuthProperties;
+import com.example.HonBam.exception.JwtAuthException;
+import com.example.HonBam.exception.JwtErrorCode;
 import com.example.HonBam.userapi.entity.Role;
 import com.example.HonBam.userapi.entity.User;
 import io.jsonwebtoken.*;
@@ -86,7 +88,7 @@ public class TokenProvider {
         Claims claims = parse(token);
 
         if (!"access".equals(claims.get("typ"))) {
-            throw new JwtException("INVALID_TOKEN_TYPE:ACCESS");
+            throw new JwtAuthException(JwtErrorCode.INVALID_TOKEN_TYPE);
         }
 
         return toUserInfo(claims);
@@ -101,9 +103,9 @@ public class TokenProvider {
                     .parseClaimsJws(token)
                     .getBody();
         } catch (ExpiredJwtException e) {
-            throw new JwtException("TOKEN_EXPIRED");
+            throw new JwtAuthException(JwtErrorCode.ACCESS_TOKEN_EXPIRED);
         } catch (JwtException e) {
-            throw new JwtException("INVALID_JWT");
+            throw new JwtAuthException(JwtErrorCode.INVALID_JWT);
         }
     }
 

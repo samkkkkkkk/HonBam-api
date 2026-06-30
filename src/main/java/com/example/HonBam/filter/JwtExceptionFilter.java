@@ -1,6 +1,7 @@
 package com.example.HonBam.filter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.example.HonBam.exception.JwtAuthException;
+import com.example.HonBam.exception.JwtErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -32,30 +33,14 @@ public class JwtExceptionFilter extends OncePerRequestFilter {
             // 예외가 발생하지 않으면 Auth Filter로 통과
             filterChain.doFilter(request,response);
         } catch (JwtException e) {
-            //토큰이 만료 되었을 시 Auth Filter에서 강제 예외 발생 -> 앞에있는 Exception filter로 전달
-            log.info("만료 예외 발생 ! - {}" , e.getMessage());
+            // Auth Filter에서 발생한 JWT 예외를 사유 코드로 매핑해 JSON 응답
+            log.info("JWT 인증 예외 발생 ! - {}", e.getMessage());
 
-            //  Access Token 만료
-            if (e.getMessage().contains("expired")) {
-                setErrorResponse(response, 401, "ACCESS_TOKEN_EXPIRED");
-                return;
-            }
+            JwtErrorCode errorCode = (e instanceof JwtAuthException)
+                    ? ((JwtAuthException) e).getErrorCode()
+                    : JwtErrorCode.INVALID_JWT;
 
-            // Refresh Token 타입 오류
-            if (e.getMessage().contains("Not a refresh token")) {
-                setErrorResponse(response, 400, "INVALID_REFRESH_TOKEN");
-                return;
-            }
-
-            // 토큰 타입 오류
-            if (e.getMessage().contains("Invalid token type")) {
-                setErrorResponse(response, 400, "INVALID_TOKEN_TYPE");
-                return;
-            }
-
-            // 기타 JWT 관련 오류
-            setErrorResponse(response,401, "INVALID_JWT");
-
+            setErrorResponse(response, errorCode.getHttpStatus(), errorCode.getCode());
         }
     }
 
