@@ -38,6 +38,7 @@ class TokenProviderTest {
         authProperties = new AuthProperties();
         authProperties.getToken().setAccessExpireMinutes(30);
         authProperties.getToken().setRefreshExpireDays(14);
+        authProperties.getToken().setRefreshPepper("test-pepper");
 
         tokenProvider = new TokenProvider(authProperties);
         ReflectionTestUtils.setField(tokenProvider, "secretKey", SECRET);
@@ -118,5 +119,35 @@ class TokenProviderTest {
         assertThat(tokenProvider.hashRefreshToken(raw))
                 .isEqualTo(tokenProvider.hashRefreshToken(raw))
                 .isNotEqualTo(raw);
+    }
+
+    @Test
+    @DisplayName("hashRefreshToken은 SHA-256 hex(64자)를 반환한다")
+    void hashRefreshTokenIsSha256Hex() {
+        String hash = tokenProvider.hashRefreshToken("some-refresh-token");
+
+        assertThat(hash).hasSize(64).matches("[0-9a-f]{64}");
+    }
+
+    @Test
+    @DisplayName("페퍼가 다르면 동일 입력이라도 해시가 달라진다")
+    void differentPepperProducesDifferentHash() {
+        String raw = "same-refresh-token";
+        String hashA = tokenProvider.hashRefreshToken(raw);
+
+        authProperties.getToken().setRefreshPepper("another-pepper");
+        String hashB = tokenProvider.hashRefreshToken(raw);
+
+        assertThat(hashA).isNotEqualTo(hashB);
+    }
+
+    @Test
+    @DisplayName("페퍼 미설정 시 명확한 예외로 실패한다")
+    void missingPepperFailsFast() {
+        authProperties.getToken().setRefreshPepper(null);
+
+        assertThatThrownBy(() -> tokenProvider.hashRefreshToken("raw"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("refresh-pepper");
     }
 }

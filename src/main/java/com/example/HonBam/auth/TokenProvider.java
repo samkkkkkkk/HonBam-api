@@ -10,14 +10,18 @@ import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.script.DigestUtils;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
@@ -62,9 +66,21 @@ public class TokenProvider {
         return UUID.randomUUID().toString() + UUID.randomUUID();
     }
 
-    // Refresh Token 저장용 해쉬 생성
+    // Refresh Token 저장용 해쉬 생성 (HMAC-SHA256 + 페퍼)
+    // 페퍼를 HMAC 키로 사용하므로 DB/Redis가 유출돼도 페퍼 없이는 토큰 대조가 불가능하다.
     public String hashRefreshToken(String refreshToken) {
-        return DigestUtils.sha1DigestAsHex(refreshToken);
+        String pepper = authProperties.getToken().getRefreshPepper();
+        if (pepper == null || pepper.isBlank()) {
+            throw new IllegalStateException("auth.token.refresh-pepper 설정이 필요합니다.");
+        }
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(pepper.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] digest = mac.doFinal(refreshToken.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("refresh 토큰 해싱 실패", e);
+        }
     }
 
     // JWT 생성 모듈

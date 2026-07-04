@@ -19,6 +19,8 @@ public class AuthProperties {
     public static class Token {
         private long accessExpireMinutes;
         private long refreshExpireDays;
+        // refresh 토큰 해싱(HMAC-SHA256)의 비밀 키(페퍼)
+        private String refreshPepper;
 
         public Duration getAccessExpireDuration() {
             return Duration.ofMinutes(accessExpireMinutes);
