@@ -14,7 +14,7 @@ public class TossPaymentResponseDTO {
 
     private String orderName;
     private LocalDateTime paidAt;
-    private String OrderId;
+    private String orderId;
     private String method;
     private int amount;
 
@@ -24,7 +24,7 @@ public class TossPaymentResponseDTO {
     public TossPaymentResponseDTO(PaidInfo save) {
         this.orderName = save.getOrderName();
         this.paidAt = save.getRequestedAt();
-        this.OrderId = save.getOrderId();
+        this.orderId = save.getOrderId();
         this.method = save.getMethod();
         this.amount = save.getAmount();
     }

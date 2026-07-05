@@ -66,6 +66,48 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("INVALID_REFRESH_TOKEN", e.getMessage()));
     }
 
+    @ExceptionHandler(CustomUnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleCustomUnauthorizedException(CustomUnauthorizedException ex) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse("UNAUTHORIZED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotFoundException(OrderNotFoundException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("ORDER_NOT_FOUND", ex.getMessage()));
+    }
+
+    @ExceptionHandler(SubscriptionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleSubscriptionNotFoundException(SubscriptionNotFoundException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("SUBSCRIPTION_NOT_FOUND", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidPaymentAmountException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPaymentAmountException(InvalidPaymentAmountException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("INVALID_PAYMENT_AMOUNT", ex.getMessage()));
+    }
+
+    @ExceptionHandler(PaymentAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handlePaymentAccessDeniedException(PaymentAccessDeniedException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse("PAYMENT_ACCESS_DENIED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(TossApiException.class)
+    public ResponseEntity<ErrorResponse> handleTossApiException(TossApiException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(new ErrorResponse(ex.getCode(), ex.getMessage()));
+    }
+
     // 기타 RuntimeException 처리 (fallback)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {

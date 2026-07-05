@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @ToString
-@EqualsAndHashCode
+@EqualsAndHashCode(of = "subInfoId")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

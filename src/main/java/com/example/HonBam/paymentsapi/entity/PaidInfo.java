@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @ToString
-@EqualsAndHashCode
+@EqualsAndHashCode(of = "paidId")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -47,12 +47,17 @@ public class PaidInfo {
     @NotNull
     private LocalDateTime requestedAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String paymentStatus;
+    private TossPaymentStatus paymentStatus;
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     User user;
+
+    public void applyCancellation(TossPaymentStatus paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
 
 }

@@ -2,6 +2,7 @@ package com.example.HonBam.paymentsapi.entity;
 
 import com.example.HonBam.userapi.entity.User;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
@@ -9,7 +10,7 @@ import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 @Entity
-@ToString @EqualsAndHashCode
+@ToString @EqualsAndHashCode(of = "payId")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -35,8 +36,8 @@ public class PaymentInfo {
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private LocalDateTime create_at = LocalDateTime.now();
+    @CreationTimestamp
+    @Column(name = "create_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
 }

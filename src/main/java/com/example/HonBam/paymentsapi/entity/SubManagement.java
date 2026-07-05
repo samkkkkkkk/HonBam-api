@@ -9,7 +9,7 @@ import javax.validation.constraints.NotNull;
 @Entity
 @Getter
 @ToString
-@EqualsAndHashCode
+@EqualsAndHashCode(of = "subManagementId")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -31,5 +31,11 @@ public class SubManagement {
     @JoinColumn(name = "sub_id")
     private Subscription subscription;
 
+    public static SubManagement of(Subscription subscription, PaidInfo paidInfo) {
+        return SubManagement.builder()
+                .subscription(subscription)
+                .paidInfo(paidInfo)
+                .build();
+    }
 
 }

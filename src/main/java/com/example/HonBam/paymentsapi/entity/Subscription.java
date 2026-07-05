@@ -8,7 +8,7 @@ import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 @Entity
-@ToString @EqualsAndHashCode
+@ToString @EqualsAndHashCode(of = "subId")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
