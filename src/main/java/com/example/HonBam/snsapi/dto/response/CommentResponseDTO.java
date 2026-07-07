@@ -23,6 +23,7 @@ public class CommentResponseDTO {
     private Long parentId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private boolean deleted;
 
     @Builder.Default
     private List<CommentResponseDTO> children = new ArrayList<>();
@@ -38,7 +39,13 @@ public class CommentResponseDTO {
                 .parentId(comment.getParentId())
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
+                .deleted(comment.isDeleted())
                 .build();
+    }
+
+    public void maskAsDeleted(String placeholderContent) {
+        this.deleted = true;
+        this.content = placeholderContent;
     }
 
 }

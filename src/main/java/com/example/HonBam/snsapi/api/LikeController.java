@@ -1,6 +1,7 @@
 package com.example.HonBam.snsapi.api;
 
 import com.example.HonBam.auth.TokenUserInfo;
+import com.example.HonBam.snsapi.dto.response.LikeCountResponse;
 import com.example.HonBam.snsapi.dto.response.LikeStatusResponse;
 import com.example.HonBam.snsapi.service.LikeService;
 import lombok.RequiredArgsConstructor;
@@ -8,17 +9,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/sns/posts")
 @RequiredArgsConstructor
 public class LikeController {
+
     private final LikeService likeService;
 
     // 좋아요 등록
     @PostMapping("/{postId}/like")
-    public ResponseEntity<?> addLike(
+    public ResponseEntity<LikeStatusResponse> addLike(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable Long postId
     ) {
@@ -30,33 +30,32 @@ public class LikeController {
 
     // 좋아요 취소
     @DeleteMapping("/{postId}/like")
-    public ResponseEntity<?> removeLike(
+    public ResponseEntity<LikeStatusResponse> removeLike(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable Long postId
     ) {
         likeService.removeLike(userInfo.getUserId(), postId);
         int likeCount = likeService.getLikeCount(postId);
 
-        return ResponseEntity.ok(new LikeStatusResponse(true, likeCount));
+        return ResponseEntity.ok(new LikeStatusResponse(false, likeCount));
     }
 
     // 좋아요 여부 조회
     @GetMapping("/{postId}/like")
-    public ResponseEntity<?> checkLiked(
+    public ResponseEntity<LikeStatusResponse> checkLiked(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable Long postId
     ) {
         boolean liked = likeService.isLiked(userInfo.getUserId(), postId);
-        return ResponseEntity.ok(Map.of("liked", liked));
+        int likeCount = likeService.getLikeCount(postId);
+
+        return ResponseEntity.ok(new LikeStatusResponse(liked, likeCount));
     }
 
     // 좋아요 수 조회
     @GetMapping("/{postId}/like-count")
-    public ResponseEntity<?> getLikeCount(@PathVariable Long postId) {
-        return ResponseEntity.ok(Map.of(
-                "likeCount", likeService.getLikeCount(postId)
-        ));
+    public ResponseEntity<LikeCountResponse> getLikeCount(@PathVariable Long postId) {
+        return ResponseEntity.ok(new LikeCountResponse(likeService.getLikeCount(postId)));
     }
-
 
 }

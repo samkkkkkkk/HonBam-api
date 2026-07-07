@@ -82,9 +82,9 @@ dependencies {
 
     implementation "software.amazon.awssdk:s3:2.25.26"
 
-    testImplementation 'org.testcontainers:testcontainers:1.19.7'
-    testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
-    testImplementation 'org.testcontainers:mysql:1.19.7'
+    testImplementation 'org.testcontainers:testcontainers:1.21.3'
+    testImplementation 'org.testcontainers:junit-jupiter:1.21.3'
+    testImplementation 'org.testcontainers:mysql:1.21.3'
 
 
 
@@ -99,4 +99,6 @@ tasks.named('bootBuildImage') {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // docker-java 기본 API 버전(1.32)이 최신 Docker 데몬(최소 1.40)에서 거부되어 Testcontainers가 실패하는 문제 회피
+    systemProperty 'api.version', '1.41'
 }

@@ -73,6 +73,20 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("UNAUTHORIZED", ex.getMessage()));
     }
 
+    @ExceptionHandler(SnsAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleSnsAccessDeniedException(SnsAccessDeniedException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse("SNS_ACCESS_DENIED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidCommentException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCommentException(InvalidCommentException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("INVALID_COMMENT", ex.getMessage()));
+    }
+
     @ExceptionHandler(OrderNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleOrderNotFoundException(OrderNotFoundException ex) {
         return ResponseEntity

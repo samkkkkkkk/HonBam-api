@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
-    Page<Post> findByAuthorIdInOrderByIdDesc(Iterable<String> followingIds, Pageable pageable);
 
     @Query("SELECT p.id FROM Post p WHERE p.authorId = :authorId ORDER BY p.createdAt DESC")
     Page<Long> findPostIdsByAuthorId(@Param("authorId") String authorId, Pageable pageable);
@@ -30,43 +29,41 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p.id FROM Post p ORDER BY p.likeCount DESC")
     Page<Long> findAllPostIdsOrderByLikeCountDesc(Pageable pageable);
 
-    List<Post> findByAuthorIdOrderByCreatedAtDesc(String authorId, Pageable pageable);
-
-
-    @Query("SELECT p " +
+    @Query("SELECT p.id " +
            "FROM Post p " +
            "WHERE p.authorId IN (" +
-           "SELECT f.id.followingId  FROM Follow f WHERE f.id.followerId  = :userId) " +
+           "SELECT f.id.followingId FROM Follow f WHERE f.id.followerId = :userId) " +
            "ORDER BY p.createdAt DESC")
-    List<Post> findFeedPosts(String userId, Pageable pageable);
+    Page<Long> findFeedPostIds(@Param("userId") String userId, Pageable pageable);
 
     // commentCount
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.commentCount = p.commentCount + 1 WHERE p.id = :postId")
     int increaseCommentCount(@Param("postId") Long postId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.commentCount = p.commentCount - 1 WHERE p.id = :postId AND p.commentCount > 0")
     int decreaseCommentCount(@Param("postId") Long postId);
 
 
     // 좋아요 수정
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.likeCount = p.likeCount + 1 WHERE p.id = :postId")
     int increaseLikeCount(@Param("postId") Long postId);
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.likeCount = p.likeCount - 1 WHERE p.id = :postId AND p.likeCount > 0")
     int decreaseLikeCount(@Param("postId") Long postId);
 
     @Query("SELECT p.likeCount FROM Post p WHERE p.id = :postId")
     Integer findLikeCount(@Param("postId") Long postId);
 
-    // 좋아요 순으로 정렬 후 post Id만 가져오기
-    @Query("SELECT DISTINCT p.id " +
+    // 미디어가 있는 게시물만 좋아요 순 정렬 후 id만 조회
+    // (DISTINCT + SELECT에 없는 컬럼 ORDER BY 조합은 MySQL에서 오류가 나므로 JOIN 대신 EXISTS 사용)
+    @Query("SELECT p.id " +
            "FROM Post p " +
-           "JOIN p.postMedias pm " +
            "WHERE p.createdAt BETWEEN :start AND :end " +
+           "AND EXISTS (SELECT 1 FROM PostMedia pm WHERE pm.post = p) " +
            "ORDER BY p.likeCount DESC, p.createdAt DESC")
     Page<Long> findTodayShotIds(
             @Param("start") LocalDateTime start,

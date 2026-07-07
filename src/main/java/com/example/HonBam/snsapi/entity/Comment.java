@@ -42,6 +42,14 @@ public class Comment {
     @Column(name = "parent_id")
     private Long parentId; // 대댓글 확장용
 
+    @Column(name = "deleted", nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
+
+    public void markDeleted() {
+        this.deleted = true;
+    }
+
     public void editContent(String newContent) {
         if (newContent == null || newContent.trim().isEmpty()) {
             throw new IllegalArgumentException("댓글 내용은 비어 있을 수 없습니다.");

@@ -45,7 +45,7 @@ public class SnsCommentController {
             @PathVariable Long commentId,
             @RequestBody CommentUpdateRequestDTO requestDTO
     ) {
-        return ResponseEntity.ok(commentService.updateComment(userInfo.getUserId(), commentId, requestDTO));
+        return ResponseEntity.ok(commentService.updateComment(userInfo.getUserId(), postId, commentId, requestDTO));
     }
 
     // 댓글 삭제
@@ -56,7 +56,7 @@ public class SnsCommentController {
             @PathVariable Long postId,
             @PathVariable Long commentId
     ) {
-        commentService.deleteComment(userInfo.getUserId(), commentId);
+        commentService.deleteComment(userInfo.getUserId(), postId, commentId);
         return ResponseEntity.ok("댓글이 삭제되었습니다.");
     }
 

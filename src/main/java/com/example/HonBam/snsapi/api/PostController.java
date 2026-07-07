@@ -101,11 +101,12 @@ public class PostController {
 
     // 게시글 삭제
     @DeleteMapping("/{postId}")
-    public void deletePost(
+    public ResponseEntity<Void> deletePost(
             @AuthenticationPrincipal TokenUserInfo userInfo,
             @PathVariable Long postId
     ) {
         postService.deletePost(userInfo.getUserId(), postId);
+        return ResponseEntity.noContent().build();
     }
 
     // 오늘의 인증샷

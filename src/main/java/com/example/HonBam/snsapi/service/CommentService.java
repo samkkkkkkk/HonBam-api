@@ -1,18 +1,18 @@
 package com.example.HonBam.snsapi.service;
 
 import com.example.HonBam.exception.CommentNotFoundException;
+import com.example.HonBam.exception.InvalidCommentException;
 import com.example.HonBam.exception.PostNotFoundException;
+import com.example.HonBam.exception.SnsAccessDeniedException;
 import com.example.HonBam.exception.UserNotFoundException;
 import com.example.HonBam.snsapi.dto.request.CommentCreateRequestDTO;
 import com.example.HonBam.snsapi.dto.request.CommentUpdateRequestDTO;
 import com.example.HonBam.snsapi.dto.response.CommentResponseDTO;
 import com.example.HonBam.snsapi.entity.Comment;
-import com.example.HonBam.snsapi.entity.Post;
 import com.example.HonBam.snsapi.repository.CommentRepository;
 import com.example.HonBam.snsapi.repository.PostRepository;
-import com.example.HonBam.upload.service.PresignedUrlService;
+import com.example.HonBam.snsapi.service.support.AuthorProfileResolver;
 import com.example.HonBam.userapi.entity.User;
-import com.example.HonBam.userapi.repository.UserProfileMediaRepository;
 import com.example.HonBam.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,16 +31,12 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CommentService {
 
+    private static final String DELETED_COMMENT_CONTENT = "삭제된 댓글입니다.";
+
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
-    private final UserProfileMediaRepository userProfileMediaRepository;
-    private final PresignedUrlService presignedUrlService;
-
-    public User getAuthor(String authorId) {
-        return userRepository.findById(authorId)
-                .orElseThrow(() -> new UserNotFoundException("작성자를 찾을 수 없습니다."));
-    }
+    private final AuthorProfileResolver authorProfileResolver;
 
     // 댓글 작성
     @Transactional
@@ -50,11 +47,15 @@ public class CommentService {
                     .orElseThrow(() -> new CommentNotFoundException("댓글이 존재하지 않습니다."));
 
             if (parent.getParentId() != null) {
-                throw new RuntimeException("대댓글에 댓글을 작성할 수 없습니다.");
+                throw new InvalidCommentException("대댓글에 댓글을 작성할 수 없습니다.");
+            }
+            if (parent.isDeleted()) {
+                throw new InvalidCommentException("삭제된 댓글에는 답글을 작성할 수 없습니다.");
             }
         }
 
-        Post post = postRepository.findById(postId).orElseThrow(() -> new PostNotFoundException("게시글이 존재하지 않습니다."));
+        postRepository.findById(postId)
+                .orElseThrow(() -> new PostNotFoundException("게시글이 존재하지 않습니다."));
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
@@ -69,80 +70,82 @@ public class CommentService {
         Comment saved = commentRepository.save(comment);
 
         // 게시글 댓글 수 증가
-        int updated = postRepository.increaseCommentCount(postId);
-        if (updated == 0) {
-            throw new IllegalArgumentException("댓글 증가 처리에 실패했습니다.");
-        }
+        postRepository.increaseCommentCount(postId);
 
-        return convertToCommentDTO(saved);
+        return convertToCommentDTO(saved, user.getNickname(), authorProfileResolver.resolve(user));
     }
 
     // 댓글 수정
     @Transactional
-    public CommentResponseDTO updateComment(String userId, Long commentId, CommentUpdateRequestDTO requestDTO) {
-        Comment comment = commentRepository.findById(commentId)
+    public CommentResponseDTO updateComment(String userId, Long postId, Long commentId, CommentUpdateRequestDTO requestDTO) {
+        Comment comment = commentRepository.findByIdAndPostId(commentId, postId)
                 .orElseThrow(() -> new CommentNotFoundException("댓글이 존재하지 않습니다."));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+        if (comment.isDeleted()) {
+            throw new InvalidCommentException("삭제된 댓글은 수정할 수 없습니다.");
+        }
 
         if (!comment.getAuthorId().equals(userId)) {
-            throw new SecurityException("본인 댓글만 수정할 수 있습니다.");
+            throw new SnsAccessDeniedException("본인 댓글만 수정할 수 있습니다.");
         }
 
         comment.editContent(requestDTO.getContent());
-        return convertToCommentDTO(comment);
+
+        User author = userRepository.findById(comment.getAuthorId())
+                .orElseThrow(() -> new UserNotFoundException("댓글 작성자를 찾을 수 없습니다."));
+
+        return convertToCommentDTO(comment, author.getNickname(), authorProfileResolver.resolve(author));
     }
 
-    // 댓글 삭제
+    // 댓글 삭제 — 대댓글이 있으면 soft delete, 없으면 hard delete
     @Transactional
-    public void deleteComment(String userId, Long commentId) {
-        Comment comment = commentRepository.findById(commentId)
+    public void deleteComment(String userId, Long postId, Long commentId) {
+        Comment comment = commentRepository.findByIdAndPostId(commentId, postId)
                 .orElseThrow(() -> new CommentNotFoundException("댓글을 찾을 수 없습니다."));
 
+        if (comment.isDeleted()) {
+            throw new CommentNotFoundException("이미 삭제된 댓글입니다.");
+        }
+
         if (!comment.getAuthorId().equals(userId)) {
-            throw new SecurityException("본인 댓글만 삭제할 수 있습니다.");
+            throw new SnsAccessDeniedException("본인 댓글만 삭제할 수 있습니다.");
         }
 
-        commentRepository.delete(comment);
-
-        int updated = postRepository.decreaseCommentCount(comment.getPostId());
-        if (updated == 0) {
-            throw new IllegalArgumentException("댓글 삭제는 완료 되었지만 댓글 수 감소 처리에 실패했습니다.");
+        if (commentRepository.existsByParentId(comment.getId())) {
+            comment.markDeleted();
+        } else {
+            commentRepository.delete(comment);
         }
 
+        postRepository.decreaseCommentCount(comment.getPostId());
     }
 
     // 특정 댓글의 대댓글 목록
     @Transactional(readOnly = true)
     public List<CommentResponseDTO> getReplies(Long postId, Long parentId) {
-        return commentRepository.findByPostIdAndParentIdOrderByCreatedAt(postId, parentId)
-                .stream()
-                .map(comment -> convertToCommentDTO(comment))
-                .collect(Collectors.toList());
+        return convertToCommentDTOList(commentRepository.findByPostIdAndParentIdOrderByCreatedAt(postId, parentId));
     }
 
     @Transactional(readOnly = true)
     public List<CommentResponseDTO> getComments(Long postId) {
         List<Comment> comments = commentRepository.findByPostIdOrderByCreatedAtAsc(postId);
+        List<CommentResponseDTO> dtos = convertToCommentDTOList(comments);
 
         Map<Long, CommentResponseDTO> map = new HashMap<>();
         List<CommentResponseDTO> roots = new ArrayList<>();
 
-        for (Comment c : comments) {
-            CommentResponseDTO dto = convertToCommentDTO(c);
-            map.put(c.getId(), dto);
-            if (c.getParentId() == null) {
+        for (CommentResponseDTO dto : dtos) {
+            map.put(dto.getId(), dto);
+            if (dto.getParentId() == null) {
                 roots.add(dto);
             }
         }
 
-        for (Comment c : comments) {
-            if (c.getParentId() != null) {
-                CommentResponseDTO parent = map.get(c.getParentId());
-                CommentResponseDTO child = map.get(c.getId());
-                if (parent != null && child != null) {
-                    parent.getChildren().add(child);
+        for (CommentResponseDTO dto : dtos) {
+            if (dto.getParentId() != null) {
+                CommentResponseDTO parent = map.get(dto.getParentId());
+                if (parent != null) {
+                    parent.getChildren().add(dto);
                 }
             }
         }
@@ -150,20 +153,41 @@ public class CommentService {
         return roots;
     }
 
-    private String resolveAuthorProfileUrl(User author) {
-        return userProfileMediaRepository.findByUser(author)
-                .map(u -> presignedUrlService.generatePresignedGetUrl(u.getMedia().getFileKey()))
-                .orElse(null);
+    // 작성자/프로필 일괄 조회 후 DTO 변환 (댓글별 개별 조회 N+1 방지)
+    private List<CommentResponseDTO> convertToCommentDTOList(List<Comment> comments) {
+        if (comments.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<String> authorIds = comments.stream()
+                .map(Comment::getAuthorId)
+                .collect(Collectors.toSet());
+
+        Map<String, User> authorMap = userRepository.findAllById(authorIds).stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
+
+        Map<String, String> profileUrlMap = authorProfileResolver.resolveUrlMap(authorIds);
+
+        List<CommentResponseDTO> result = new ArrayList<>();
+        for (Comment comment : comments) {
+            User author = authorMap.get(comment.getAuthorId());
+            if (author == null) {
+                log.warn("댓글 작성자를 찾을 수 없습니다. commentId: {}, authorId: {}",
+                        comment.getId(), comment.getAuthorId());
+            }
+            String nickname = (author != null) ? author.getNickname() : null;
+            String profileUrl = profileUrlMap.get(comment.getAuthorId());
+            result.add(convertToCommentDTO(comment, nickname, profileUrl));
+        }
+        return result;
     }
 
-    private CommentResponseDTO convertToCommentDTO(Comment comment) {
-        User author = userRepository.findById(comment.getAuthorId())
-                .orElseThrow(() -> new UserNotFoundException("댓글 작성자를 찾을 수 없습니다."));
-
-        String authorNickname = author.getNickname();
-        String profileUrl = resolveAuthorProfileUrl(author);
-
-        return CommentResponseDTO.from(comment, authorNickname, profileUrl);
+    private CommentResponseDTO convertToCommentDTO(Comment comment, String authorNickname, String profileUrl) {
+        CommentResponseDTO dto = CommentResponseDTO.from(comment, authorNickname, profileUrl);
+        if (comment.isDeleted()) {
+            dto.maskAsDeleted(DELETED_COMMENT_CONTENT);
+        }
+        return dto;
     }
 
 }
